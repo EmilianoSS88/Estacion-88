@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro de Analítica | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans min-h-screen flex items-start justify-center">
+
+    <div class="max-w-6xl w-full mx-auto flex flex-col gap-8">
+
+        <div class="bg-white p-8 rounded-xl shadow-lg border border-slate-200 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-extrabold text-indigo-600 tracking-tight">Centro Inteligente y Finanzas</h1>
+                <p class="text-slate-500">Métricas globales, capital de bodega y proyecciones automáticas.</p>
+            </div>
+            <a href="/" class="text-slate-500 hover:text-slate-800 font-bold bg-slate-100 hover:bg-slate-200 py-2 px-6 rounded-lg transition-colors">
+                ⬅ Volver
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col items-center">
+                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">Capital en Almacén</span>
+                <span class="text-4xl font-black text-slate-800 mt-2">{{ valor_inventario }}</span>
+                <span class="text-xs text-emerald-600 font-medium mt-1">● Dinero activo en insumos</span>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col justify-between relative overflow-hidden shadow-sm">
+                <div class="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm font-bold text-slate-500 uppercase tracking-wider">Capital de Reinversión</p>
+                        <h3 class="text-3xl font-black text-red-600 mt-2">{{ dinero_reinversion }}</h3>
+                    </div>
+                    <div class="bg-red-100 p-2 rounded-lg text-red-600 font-bold text-xl">
+                        💸
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-3 font-medium">Dinero necesario para recuperar los stocks mínimos.</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col items-center">
+                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">Alertas de Stock</span>
+                <span class="text-4xl font-black {% if alertas_stock %}text-red-500{% else %}text-emerald-500{% endif %} mt-2">
+                    {{ alertas_stock|length }}
+                </span>
+                <span class="text-xs text-slate-500 font-medium mt-1">Productos por agotarse</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col">
+                <h2 class="text-slate-700 font-bold text-sm uppercase mb-4">Platillos Más Vendidos (Top 5)</h2>
+                <div class="w-full h-64 flex justify-center items-center">
+                    {% if cantidades_platillos %}
+                        <canvas id="graficaVentas"></canvas>
+                    {% else %}
+                        <p class="text-slate-400 text-sm italic">Aún no hay ventas registradas.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col">
+                <h2 class="text-slate-700 font-bold text-sm uppercase mb-2">Planificador de Producción Semanal</h2>
+                <p class="text-xs text-gray-500 mb-4">Cálculo exacto de porciones requeridas para cumplir con los suscriptores activos:</p>
+
+                <div class="flex flex-col gap-4">
+                    <div class="flex justify-between items-center bg-orange-50 p-4 rounded-xl border border-orange-100">
+                        <div>
+                            <span class="block font-bold text-orange-800 text-lg">☕ Desayunos Proyectados</span>
+                            <span class="text-xs text-orange-600">Servicios totales de lunes a viernes</span>
+                        </div>
+                        <span class="text-3xl font-black text-orange-700">{{ desayunos_proyectados }}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <div>
+                            <span class="block font-bold text-blue-800 text-lg">🥗 Comidas Proyectadas</span>
+                            <span class="text-xs text-blue-600">Servicios totales de lunes a viernes</span>
+                        </div>
+                        <span class="text-3xl font-black text-blue-700">{{ comidas_proyectadas }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 bg-slate-50 p-4 rounded-xl border border-slate-200 flex-1">
+                    <span class="block text-xs font-bold text-slate-500 uppercase mb-2">💡 Recomendación para Cero Merma</span>
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                        Con base en estos números, tus recetas descontarán automáticamente los insumos fijos. Revisa la lista de alertas a la izquierda para garantizar que cuentas con la materia prima base antes de iniciar la jornada.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 mb-8 mt-8">
+            <h2 class="text-2xl font-black text-slate-800 mb-6 border-b pb-3">📊 Reporte Financiero</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <div class="bg-emerald-50 border border-emerald-200 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+                    <span class="text-emerald-700 font-bold text-sm uppercase tracking-wider mb-2">Caja de Hoy</span>
+                    <span class="text-4xl font-black text-emerald-800">{{ hoy_str }}</span>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
+                    <span class="text-blue-700 font-bold text-sm uppercase tracking-wider mb-2">Esta Semana</span>
+                    <span class="text-4xl font-black text-blue-800">{{ semana_str }}</span>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-200 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
+                    <span class="text-indigo-700 font-bold text-sm uppercase tracking-wider mb-2">Este Mes</span>
+                    <span class="text-4xl font-black text-indigo-800">{{ mes_str }}</span>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+            <div class="bg-red-50 border-b border-red-100 p-4">
+                <h2 class="text-lg font-bold text-red-700">Lista Completa de Reabastecimiento Urgente (5 unidades o menos)</h2>
+            </div>
+            <div class="p-4">
+                {% if alertas_stock %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {% for item in alertas_stock %}
+                            <div class="bg-red-50/50 border border-red-200 p-3 rounded-lg flex justify-between items-center">
+                                <div>
+                                    <span class="block font-bold text-slate-800 text-sm">{{ item['Producto'] }}</span>
+                                    <span class="text-xs text-slate-500">Unidad de medida: {{ item['Medida'] }}</span>
+                                </div>
+                                <span class="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-md">
+                                    {{ item['Cantidad'] }} disp.
+                                </span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-slate-500 text-sm text-center py-4">No hay productos con existencias bajas. ¡Tu bodega está perfectamente surtida! 👍</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="datosGrafica"
+             data-nombres='{{ nombres_platillos | tojson }}'
+             data-cantidades='{{ cantidades_platillos | tojson }}'
+             style="display: none;"></div>
+
+    </div>
+
+    <script>
+        // Le pusimos un seguro al código para que cargue la gráfica solo cuando la página esté lista
+        document.addEventListener('DOMContentLoaded', function() {
+            const datosContenedor = document.getElementById('datosGrafica');
+
+            if (datosContenedor && datosContenedor.dataset.nombres && datosContenedor.dataset.cantidades) {
+                try {
+                    const nombresInsumos = JSON.parse(datosContenedor.dataset.nombres);
+                    const cantidadesInsumos = JSON.parse(datosContenedor.dataset.cantidades);
+
+                    if (nombresInsumos.length > 0) {
+                        const canvas = document.getElementById('graficaVentas');
+                        if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            new Chart(ctx, {
+                                type: 'bar',
+                                data: {
+                                    labels: nombresInsumos,
+                                    datasets: [{
+                                        label: 'Veces Vendido',
+                                        data: cantidadesInsumos,
+                                        backgroundColor: '#F59E0B',
+                                        borderRadius: 6,
+                                        borderWidth: 0
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: { display: false }
+                                    },
+                                    scales: {
+                                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error al cargar la gráfica:", e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center font-sans p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full border border-slate-200">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">☕ ESTACIÓN 88</h1>
+
+            <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo Estación 88" class="w-32 h-32 object-cover mx-auto my-4 rounded-2xl shadow-md border border-slate-100">
+
+            <p class="text-sm text-slate-500">Punto de Venta y Control</p>
+        </div>
+
+        {% if error %}
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm font-bold mb-5 text-center">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/login" class="flex flex-col gap-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Usuario:</label>
+                <input type="text" name="usuario" required placeholder="Tu usuario..." class="w-full py-2.5 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Contraseña:</label>
+                <input type="password" name="password" required placeholder="••••••••" class="w-full py-2.5 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium">
+            </div>
+
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-lg transition-all shadow-md mt-2 text-sm">
+                Entrar al Sistema
+            </button>
+        </form>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Libro de Recetas | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans min-h-screen flex items-start justify-center">
+    
+    <div class="max-w-5xl w-full mx-auto flex flex-col gap-8">
+        
+        <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-amber-600 tracking-tight">📜 Libro de Recetas</h1>
+                <p class="text-slate-500 text-sm">Fórmulas fijas de consumo y administración del menú.</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center bg-slate-50 p-2 rounded-lg border border-slate-200 gap-3 w-full md:w-auto justify-end">
+                <a href="/nueva_receta" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow transition-all text-sm h-[40px] flex items-center">
+                    ➕ Nueva Receta
+                </a>
+                
+                <form method="POST" action="/eliminar_receta" class="flex items-center gap-2 h-[40px] m-0" onsubmit="return confirm('¿Seguro que quieres eliminar esta receta por completo?');">
+                    <input list="lista-recetas-borrar" name="platillo_eliminar" required placeholder="Borrar receta..." autocomplete="off" class="py-2 px-3 border border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 bg-red-50 w-36 text-sm h-full">
+                    <datalist id="lista-recetas-borrar">
+                        {% for nombre in platillos_disponibles %}
+                            <option value="{{ nombre }}">{{ nombre }}</option>
+                        {% endfor %}
+                    </datalist>
+                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md shadow transition-all text-sm h-full" title="Eliminar definitivamente">
+                        🗑️
+                    </button>
+                </form>
+                
+                <a href="/" class="text-slate-500 hover:text-slate-800 font-bold bg-white border border-slate-300 py-2 px-4 rounded-md text-sm h-[40px] flex items-center transition-colors">
+                    ⬅ Volver
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
+            <span class="text-slate-400 text-xl">🔍</span>
+            <input type="text" id="buscador-recetas" placeholder="Buscar platillo por nombre (ej. Chapata de pavo)..." class="w-full bg-transparent outline-none text-slate-700 font-medium placeholder-slate-400 text-lg">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="contenedor-recetas">
+            {% if recetas %}
+                {% for platillo, data in recetas.items() %}
+                    <div class="tarjeta-receta bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden flex flex-col justify-between" data-nombre="{{ platillo | lower }}">
+                        
+                        <div class="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-start">
+                            <div>
+                                <h2 class="text-lg font-bold text-white tracking-wide">🍽️ {{ platillo }}</h2>
+                                <p class="text-emerald-400 font-bold text-lg mt-1" title="Precio Sugerido de Venta">Sugerido: <span class="text-2xl">{{ data.precio_sugerido_str }}</span></p>
+                            </div>
+                            <a href="/editar_receta?platillo={{ platillo }}" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-1.5 px-3 rounded-md transition-colors shadow-sm whitespace-nowrap ml-2">
+                                ✏️ Editar
+                            </a>
+                        </div>
+                        
+                        <div class="p-4 flex-1 bg-slate-50/50">
+                            <table class="min-w-full divide-y divide-gray-200 bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        <th class="text-left text-xs font-bold text-slate-600 px-3 py-2">Ingrediente</th>
+                                        <th class="text-right text-xs font-bold text-slate-600 px-3 py-2">Porción</th>
+                                        <th class="text-right text-xs font-bold text-slate-600 px-3 py-2">Costo</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    {% for ing in data.insumos %}
+                                        <tr class="hover:bg-slate-50">
+                                            <td class="text-sm font-medium text-slate-700 px-3 py-2">{{ ing.Insumo }}</td>
+                                            <td class="text-sm font-bold text-amber-600 px-3 py-2 text-right">{{ ing.Cantidad }} <span class="text-xs text-slate-400">{{ ing.Medida }}</span></td>
+                                            <td class="text-sm font-bold text-red-500 px-3 py-2 text-right">{{ ing.Costo_str }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="bg-slate-100 p-3 border-t border-slate-200 flex justify-between items-center text-sm shadow-inner">
+                            <span class="font-bold text-slate-600">Costo Total: <span class="text-red-500">{{ data.costo_total_str }}</span></span>
+                            <span class="font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded-md">Margen: {{ data.margen }}%</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-2 bg-white p-8 rounded-xl border border-dashed border-slate-300 text-center">
+                    <p class="text-slate-400 italic text-sm">Aún no has creado ninguna receta. ¡Presiona el botón de 'Nueva Receta' arriba para comenzar! 🍳</p>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const buscador = document.getElementById('buscador-recetas');
+            const tarjetas = document.querySelectorAll('.tarjeta-receta');
+
+            if (buscador) {
+                buscador.addEventListener('input', function(e) {
+                    // Convertimos lo que escribe tu mamá a minúsculas para que no importe si usa mayúsculas o no
+                    const textoBusqueda = e.target.value.toLowerCase().trim();
+
+                    // Revisamos tarjeta por tarjeta
+                    tarjetas.forEach(tarjeta => {
+                        const nombrePlatillo = tarjeta.getAttribute('data-nombre');
+                        
+                        // Si el nombre del platillo incluye las letras que escribió, la mostramos
+                        if (nombrePlatillo.includes(textoBusqueda)) {
+                            tarjeta.style.display = 'flex'; // Usamos flex porque tu tarjeta usa flexbox
+                        } else {
+                            tarjeta.style.display = 'none'; // Si no coincide, la ocultamos
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

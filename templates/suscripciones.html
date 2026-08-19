@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Clientes | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans min-h-screen flex items-start justify-center">
+
+    <div class="max-w-6xl w-full mx-auto flex flex-col gap-6">
+
+        <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-black text-slate-800">👥 Registro de Clientes y Planes</h1>
+                <p class="text-sm text-slate-500">Administra planes semanales y consulta las tarjetas de fidelidad.</p>
+            </div>
+            <a href="/" class="text-slate-500 hover:text-slate-800 font-bold text-sm bg-slate-100 hover:bg-slate-200 py-2 px-4 rounded-lg transition-colors">
+                ⬅ Volver
+            </a>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col md:flex-row gap-6 items-center">
+            <div class="flex-1 w-full">
+                <div class="flex justify-between mb-2">
+                    <span class="font-bold text-slate-700">Ocupación de Planes Semanales</span>
+                    <span class="font-bold text-indigo-600">{{ activas }} / 10 Activos</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-4 overflow-hidden border border-slate-300">
+                    <div class="bg-indigo-500 h-4 rounded-full transition-all duration-500" style="width: {{ porcentaje }}%;"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2 font-medium">Lugares disponibles para venta: <span class="text-emerald-600 font-black text-sm">{{ disponibles }}</span></p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <h2 class="text-lg font-bold text-indigo-600 mb-4 border-b pb-2">📝 Registrar Cliente o Plan</h2>
+            <form method="POST" action="/suscripciones" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Nombre del Cliente:</label>
+                    <input type="text" name="cliente" required placeholder="Ej. Emiliano Serrano" class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Tipo de Plan:</label>
+                    <select name="plan" class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white font-medium">
+                        <option value="Cliente Regular">Solo Cliente Frecuente (Sin Plan)</option>
+                        <option value="Desayunos">Plan Desayunos (7 días)</option>
+                        <option value="Comidas">Plan Comidas (7 días)</option>
+                        <option value="Plan Completo">Plan Completo (7 días)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Fecha de Inicio (Solo Planes):</label>
+                    <input type="date" name="fecha_inicio" class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Número de Teléfono (Opcional):</label>
+                    <input type="tel" name="telefono" placeholder="Ej. 55 1234 5678" class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Fecha de Cumpleaños:</label>
+                    <input type="text" name="cumpleanos" placeholder="Ej. 18 de Marzo" class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <div class="flex items-end">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition-all text-sm shadow h-[38px]">
+                        Guardar Registro
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+            <div class="bg-slate-800 p-4">
+                <h2 class="text-white font-bold text-md">📋 Catálogo General de Clientes y Puntos de Fidelidad</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="py-3 px-4 text-left text-xs font-bold text-slate-500 uppercase">Cliente</th>
+                            <th class="py-3 px-4 text-center text-xs font-bold text-slate-500 uppercase">Plan / Estado</th>
+                            <th class="py-3 px-4 text-center text-xs font-bold text-slate-500 uppercase">Fechas Plan</th>
+                            <th class="py-3 px-4 text-center text-xs font-bold text-slate-500 uppercase">Tel / Cumple</th>
+                            <th class="py-3 px-4 text-center text-xs font-bold text-slate-500 uppercase">Puntos</th>
+                            <th class="py-3 px-4 text-center text-xs font-bold text-slate-500 uppercase">Acciones</th> 
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        {% for c in suscripciones %}
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            
+                            <td class="py-3 px-4 text-sm font-bold text-slate-800">{{ c.Cliente }}</td>
+
+                            <td class="py-3 px-4 text-center text-sm">
+                                <span class="block font-black text-slate-600 bg-slate-100 rounded py-0.5 mb-1 text-xs">{{ c.Plan }}</span>
+
+                                <form method="POST" action="/editar_status_cliente" class="inline">
+                                    <input type="hidden" name="cliente_nombre" value="{{ c.Cliente }}">
+
+                                    {% if c.Estado == 'Activo' %}
+                                        <input type="hidden" name="nuevo_estado" value="Expirado">
+                                        <button type="submit" class="px-2 py-0.5 text-xs font-black bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200 transition-colors cursor-pointer outline-none">
+                                            Activo
+                                        </button>
+                                    {% elif c.Estado == 'Expirado' %}
+                                        <input type="hidden" name="nuevo_estado" value="Activo">
+                                        <button type="submit" class="px-2 py-0.5 text-xs font-bold bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors cursor-pointer outline-none">
+                                            Expirado
+                                        </button>
+                                    {% elif c.Estado == 'Inactivo' %}
+                                        <input type="hidden" name="nuevo_estado" value="Activo">
+                                        <button type="submit" class="px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 rounded hover:bg-amber-200 transition-colors cursor-pointer outline-none">
+                                            Pausado
+                                        </button>
+                                    {% else %}
+                                        <span class="px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-500 rounded cursor-default border border-slate-200">
+                                            Regular
+                                        </span>
+                                    {% endif %}
+                                </form>
+                            </td>
+
+                            <td class="py-3 px-4 text-center text-xs text-slate-500">
+                                <div class="flex flex-col items-center">
+                                    <span class="text-emerald-600 font-bold" title="Inicio">🟢 {{ c.Fecha_Inicio if c.Fecha_Inicio else '-' }}</span>
+                                    <span class="text-red-500 font-bold mt-1" title="Fin">🔴 {{ c.Fecha_Fin if c.Fecha_Fin else '-' }}</span>
+                                </div>
+                            </td>
+
+                            <td class="py-3 px-4 text-center text-xs text-slate-500">
+                                📞 {{ c.Telefono if c.Telefono else '-' }}<br>
+                                🎉 <span class="text-indigo-600 font-bold">{{ c.Cumpleanos if c.Cumpleanos else '-' }}</span>
+                            </td>
+
+                            <td class="py-3 px-4 text-center bg-amber-50/20">
+                                <form method="POST" action="/editar_puntos_cliente" class="flex flex-col items-center justify-center m-0">
+                                    <input type="hidden" name="cliente_nombre" value="{{ c.Cliente }}">
+
+                                    <div class="flex items-center gap-1 justify-center">
+                                        <span class="text-amber-600 font-black text-sm">🌟 $</span>
+                                        <input type="number" step="any" name="nuevos_puntos" value="{{ c.Puntos }}" class="w-20 text-center border border-amber-200 rounded p-1 text-sm font-black text-amber-700 bg-white focus:ring-1 focus:ring-amber-500 outline-none shadow-sm">
+
+                                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1 px-1.5 rounded transition-colors shadow-sm" title="Guardar cambios de dinero">
+                                            ✓
+                                        </button>
+                                    </div>
+                                </form>
+                            </td>
+
+                            <td class="py-3 px-4 text-center">
+                                <form method="POST" action="/eliminar_cliente/{{ c.Cliente }}" onsubmit="return confirm('¿Seguro que quieres eliminar a este cliente? Se perderá todo su historial de puntos.');" class="inline m-0">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors shadow-sm outline-none border border-red-100 flex items-center justify-center mx-auto gap-1">
+                                        🗑️ <span class="hidden md:inline">Borrar</span>
+                                    </button>
+                                </form>
+                            </td>
+
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Receta | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans min-h-screen flex items-start justify-center pt-10">
+
+    <div class="max-w-2xl w-full mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+
+        <div class="mb-6 border-b pb-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-extrabold text-amber-600 tracking-tight">Editar Receta</h1>
+                <p class="text-sm text-gray-500 mt-1">Modifica el nombre del menú o calibra las porciones fijas de consumo.</p>
+            </div>
+            <a href="/recetas" class="text-slate-500 hover:text-slate-800 font-bold text-sm bg-slate-100 hover:bg-slate-200 py-2 px-4 rounded-lg transition-colors">
+                ⬅ Cancelar
+            </a>
+        </div>
+
+        <form method="POST" action="/editar_receta" class="flex flex-col gap-6">
+            <input type="hidden" name="platillo_original" value="{{ platillo }}">
+
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-grow">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Nombre del Platillo / Menú:</label>
+                    <input type="text" name="nombre_platillo" value="{{ platillo }}" required class="w-full py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none font-bold text-slate-800 text-lg bg-slate-50">
+                </div>
+                <div class="md:w-48">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Margen de Ganancia (%):</label>
+                    <input type="number" step="any" name="margen_ganancia" value="{{ margen }}" required title="Fórmula financiera: Precio = Costo / (1 - Margen)" class="w-full py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none font-black text-emerald-600 text-lg bg-emerald-50 text-center shadow-inner">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-3">Ajuste de Insumos Requeridos:</label>
+
+                <div id="contenedor-ingredientes" class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-3">
+
+                    {% for ing in ingredientes %}
+                    {% if ing['Insumo'] and (ing['Insumo']|string).strip() != '' and not (ing['Insumo']|string).isdigit() %}
+                    <div class="flex items-center gap-4 bg-white p-3 rounded-lg border border-slate-200 shadow-sm fila-ingrediente">
+                        <div class="flex-1">
+                            <span class="block font-bold text-sm text-slate-800">{{ ing['Insumo'] }}</span>
+                            <input type="hidden" name="insumos[]" value="{{ ing['Insumo'] }}">
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400 font-bold uppercase">Porción:</span>
+                            <input type="number" step="any" name="cantidades[]" value="{{ ing['Cantidad a utilizar'] }}" required class="w-24 text-center py-2 px-3 border border-gray-300 rounded-md font-bold text-amber-600 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                            <span class="text-sm font-bold text-slate-500 w-8">{{ ing['Medida'] }}</span>
+                        </div>
+
+                        <button type="button" onclick="eliminarFila(this)" class="text-red-400 hover:text-red-600 text-lg font-bold px-2 transition-colors">✕</button>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+
+                </div>
+
+                <button type="button" onclick="agregarIngrediente()" class="mt-3 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 py-2 px-4 rounded-lg transition-colors border border-amber-200 w-full md:w-auto inline-flex items-center justify-center gap-2">
+                    ➕ Añadir otro insumo a la receta
+                </button>
+            </div>
+
+            <datalist id="lista-insumos-extra">
+                {% for item in inventario_completo %}
+                    <option value="{{ item['Producto'] }}">{{ item['Producto'] }} ({{ item['Medida'] }})</option>
+                {% endfor %}
+            </datalist>
+
+            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 px-6 rounded-lg text-lg w-full transition-all shadow-md mt-2">
+                💾 Guardar Cambios en el Menú
+            </button>
+        </form>
+
+    </div>
+
+    <script>
+    function agregarIngrediente() {
+        const contenedor = document.getElementById('contenedor-ingredientes');
+
+        // Creamos la nueva cajita
+        const nuevaFila = document.createElement('div');
+        nuevaFila.className = 'flex items-center gap-4 bg-white p-3 rounded-lg border border-amber-300 shadow-sm fila-ingrediente';
+
+        // Estructura del input conectada al datalist
+        nuevaFila.innerHTML = `
+            <div class="flex-1">
+                <input type="text" name="insumos[]" list="lista-insumos-extra" required autocomplete="off" placeholder="Escribe o selecciona un insumo..." class="w-full py-2 px-3 border border-gray-300 rounded-md text-sm font-bold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-400 font-bold uppercase">Porción:</span>
+                <input type="number" step="any" name="cantidades[]" placeholder="0.0" required class="w-24 text-center py-2 px-3 border border-gray-300 rounded-md font-bold text-amber-600 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            </div>
+
+            <button type="button" onclick="eliminarFila(this)" class="text-red-400 hover:text-red-600 text-lg font-bold px-2 transition-colors">✕</button>
+        `;
+
+        contenedor.appendChild(nuevaFila);
+    }
+
+    function eliminarFila(boton) {
+        boton.parentElement.remove();
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 p-8 font-sans min-h-screen flex flex-col items-center pt-8 relative">
+
+    <div class="max-w-5xl w-full text-center mb-8 flex flex-col items-center justify-center">
+        <h1 class="text-3xl text-slate-800 tracking-tight drop-shadow-sm mb-4">Sistema Integral de Gestión y Analítica</h1>
+        <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo Estación 88" class="w-40 h-auto rounded-full shadow-lg border-4 border-white mb-6">
+
+        <!-- ✨ FRASE CENTRADA Y ESTILIZADA ✨ -->
+        <div class="max-w-xl px-4 mb-4">
+            <p class="text-sm italic text-slate-500 leading-relaxed">
+                "No temas, porque yo estoy contigo; no desmayes, porque yo soy tu Dios que te esfuerzo; siempre te ayudaré, siempre te sustentaré con la diestra de mi justicia".
+            </p>
+            <p class="text-[10px] font-black text-slate-400 mt-2 tracking-widest uppercase">
+                Isaías 41:10
+            </p>
+        </div>
+    </div>
+
+    <!-- 🛒 PUNTO DE VENTA -->
+    <div class="max-w-5xl w-full bg-white p-8 rounded-2xl shadow-md border border-slate-200 mb-8">
+        <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+            💰 Punto de Venta
+        </h2>
+
+        <form id="form-venta" method="POST" action="/vender_platillo" class="flex flex-col gap-4 w-full bg-slate-50 p-5 rounded-xl border border-slate-200" onkeydown="return event.key != 'Enter';">
+
+            <!-- CAMPOS OCULTOS PARA CONTROL DE PAGO Y DESCUENTOS -->
+            <input type="hidden" name="metodo_pago" id="input-metodo-pago" value="Efectivo">
+            <input type="hidden" name="descuento_pct" id="hidden-descuento-pct" value="0">
+            <input type="hidden" name="motivo_descuento" id="hidden-motivo" value="">
+            <input type="hidden" name="puntos_descontar" id="hidden-puntos" value="0">
+
+            <!-- 1. Cliente -->
+            <div class="w-full relative">
+                <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Cliente de la cuenta:</label>
+                <!-- ✨ SE AGREGÓ EL ID input-cliente-venta PARA QUE JS LO LEA ✨ -->
+                <input list="lista-clientes-venta" id="input-cliente-venta" name="cliente_venta" placeholder="Asignar Cliente (Dejar vacío para Venta General)..." autocomplete="off" class="w-full py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none text-slate-700 shadow-sm bg-white">
+                <datalist id="lista-clientes-venta">
+                    <option value="General">Venta General (Público)</option>
+                    {% for c in clientes %}
+                        <option value="{{ c.Nombre }}">{{ c.Nombre }} (Puntos: {{ c.Puntos }})</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <!-- 2. Contenedor de Platillos -->
+            <label class="block text-xs font-bold text-slate-600 mt-2 uppercase tracking-wider">Productos a cobrar:</label>
+            <div id="contenedor-platillos-venta" class="flex flex-col gap-3">
+                <div class="fila-venta flex flex-col md:flex-row items-center gap-3 w-full bg-white p-3 rounded-lg border border-slate-200 shadow-sm relative">
+                    <div class="flex-1 w-full relative">
+                        <input list="lista-platillos-venta" name="platillos[]" required placeholder="¿Qué se va a vender?..." autocomplete="off" class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none text-slate-700">
+                    </div>
+                    <div class="w-full md:w-28 flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-400">Cant:</span>
+                        <input type="number" name="cantidades_venta[]" value="1" min="1" required class="w-full py-2.5 px-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none font-bold text-orange-600">
+                    </div>
+                    <div class="w-full md:w-auto flex justify-end">
+                        <button type="button" class="btn-eliminar-fila bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 font-black py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center border border-red-100">✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <datalist id="lista-platillos-venta">
+                {% for nombre in platillos_disponibles %}
+                    <option value="{{ nombre }}">{{ nombre }}</option>
+                {% endfor %}
+            </datalist>
+
+            <!-- 3. Controles Inferiores -->
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mt-4 border-t border-slate-200 pt-5">
+                <button type="button" id="btn-agregar-fila" class="bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold py-3 px-5 rounded-lg shadow-sm transition-all w-full md:w-auto flex items-center justify-center gap-2">
+                    ➕ Añadir otro platillo
+                </button>
+
+                <button type="button" onclick="abrirModalPago()" class="bg-green-600 hover:bg-green-700 text-white font-black py-3 px-8 rounded-lg shadow-sm transition-all whitespace-nowrap w-full md:w-auto text-lg flex items-center justify-center gap-2">
+                    💲 Proceder al Pago
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Menús Inferiores -->
+    <div class="max-w-5xl w-full grid grid-cols-1 md:grid-cols-2 gap-8">
+        <a href="/inventario" class="group bg-white p-8 rounded-2xl shadow-md hover:shadow-xl border border-slate-200 transition-all flex flex-col items-center text-center">
+            <div class="bg-orange-100 text-orange-600 text-5xl p-6 rounded-full mb-6">📦</div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-3">Inventario y Almacén</h2>
+        </a>
+        <a href="/recetas" class="group bg-white p-8 rounded-2xl shadow-md hover:shadow-xl border border-slate-200 transition-all flex flex-col items-center text-center">
+            <div class="bg-amber-100 text-amber-600 text-5xl p-6 rounded-full mb-6">📜</div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-3">Libro de Recetas</h2>
+        </a>
+        <a href="/suscripciones" class="group bg-white p-8 rounded-2xl shadow-md hover:shadow-xl border border-slate-200 transition-all flex flex-col items-center text-center">
+            <div class="bg-blue-100 text-blue-600 text-5xl p-6 rounded-full mb-6">👥</div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-3">Clientes y Planes</h2>
+        </a>
+        <a href="/analiticas" class="group bg-white p-8 rounded-2xl shadow-md hover:shadow-xl border border-slate-200 transition-all flex flex-col items-center text-center">
+            <div class="bg-indigo-100 text-indigo-600 text-5xl p-6 rounded-full mb-6">📈</div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-3">Centro Inteligente</h2>
+        </a>
+        <a href="/historial" class="group bg-white p-8 rounded-2xl shadow-md hover:shadow-xl border border-slate-200 transition-all transform hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="bg-emerald-100 text-emerald-600 text-5xl p-6 rounded-full mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                🧾
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-3">Historial de Ventas</h2>
+            <p class="text-slate-500">Revisa los ingresos del día, cortes por método de pago y cuentas por cobrar.</p>
+        </a>
+        <a href="/caja" class="group bg-white p-8 rounded-2xl shadow-md hover:shadow-xl border border-slate-200 transition-all transform hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="bg-red-100 text-red-600 text-5xl p-6 rounded-full mb-6 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                🏦
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-3">Corte de Caja</h2>
+            <p class="text-slate-500">Abre tu turno, registra retiros y revisa exactamente cuánto efectivo debes tener.</p>
+        </a>
+        <a href="/logout" class="text-red-500 font-bold text-sm hover:underline col-span-1 md:col-span-2 text-center mt-4">Cerrar Sesión</a>
+    </div>
+
+    <!-- ✨ VENTANA FLOTANTE (MODAL) DE MÉTODOS DE PAGO ✨ -->
+    <div id="modal-pago" class="hidden fixed inset-0 bg-slate-900 bg-opacity-75 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative transform transition-all">
+
+            <button onclick="cerrarModalPago()" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 text-2xl font-bold transition-colors">✕</button>
+
+            <h3 class="text-2xl font-extrabold text-slate-800 mb-1 text-center">Finalizar Transacción</h3>
+            <p class="text-slate-400 text-xs text-center mb-6">Configura los beneficios antes de seleccionar el método de pago.</p>
+
+            <div class="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <!-- Descuento normal -->
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 mb-1 uppercase tracking-wider">Descuento (%):</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="modal-descuento-pct" placeholder="0" min="0" max="100" class="w-1/3 p-2 border border-gray-300 rounded-lg text-sm font-bold text-red-600 focus:ring-2 focus:ring-red-500 focus:outline-none bg-white">
+                        <input type="text" id="modal-motivo" placeholder="¿Motivo? Ej. Empleado..." class="w-2/3 p-2 border border-gray-300 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-red-500 focus:outline-none bg-white">
+                    </div>
+                </div>
+
+                <!-- ✨ CAJA DINÁMICA DE PUNTOS ✨ -->
+                <div id="seccion-puntos-modal" class="hidden">
+                    <label id="label-puntos-modal" class="block text-[10px] font-black text-slate-500 mb-1 uppercase tracking-wider">Pagar con Puntos:</label>
+                    <input type="number" id="modal-puntos" placeholder="Cantidad de puntos a usar..." min="0" class="w-full p-2 border border-gray-300 rounded-lg text-sm font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                </div>
+            </div>
+
+            <label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-wider text-center">Selecciona el método de pago</label>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="confirmarPago('Efectivo')" class="flex flex-col items-center justify-center gap-2 p-4 bg-emerald-50 hover:bg-emerald-500 hover:text-white text-emerald-700 rounded-xl border border-emerald-200 transition-all font-bold">
+                    <span class="text-3xl">💵</span> Efectivo
+                </button>
+                <button onclick="confirmarPago('Tarjeta')" class="flex flex-col items-center justify-center gap-2 p-4 bg-blue-50 hover:bg-blue-500 hover:text-white text-blue-700 rounded-xl border border-blue-200 transition-all font-bold">
+                    <span class="text-3xl">💳</span> Tarjeta
+                </button>
+                <button onclick="confirmarPago('Transferencia')" class="flex flex-col items-center justify-center gap-2 p-4 bg-purple-50 hover:bg-purple-500 hover:text-white text-purple-700 rounded-xl border border-purple-200 transition-all font-bold">
+                    <span class="text-3xl">📱</span> Transfer
+                </button>
+                <button onclick="confirmarPago('Credito')" class="flex flex-col items-center justify-center gap-2 p-4 bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-700 rounded-xl border border-amber-200 transition-all font-bold">
+                    <span class="text-3xl">⏳</span> Crédito
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+        // ✨ DICCIONARIO DE PUNTOS BLINDADO (A PRUEBA DE ESPACIOS Y MAYÚSCULAS) ✨
+        const clientesLista = JSON.parse('{{ clientes | tojson | safe }}');
+        const clientesPuntos = {};
+
+        // Convertimos todos los nombres a minúsculas y les quitamos los espacios fantasma
+        clientesLista.forEach(cliente => {
+            if(cliente.Nombre) {
+                const nombreLimpio = cliente.Nombre.trim().toLowerCase();
+                clientesPuntos[nombreLimpio] = parseFloat(cliente.Puntos) || 0;
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const contenedor = document.getElementById('contenedor-platillos-venta');
+            const btnAgregar = document.getElementById('btn-agregar-fila');
+
+            btnAgregar.addEventListener('click', function() {
+                const primeraFila = contenedor.querySelector('.fila-venta');
+                const nuevaFila = primeraFila.cloneNode(true);
+                nuevaFila.querySelector('input[name="platillos[]"]').value = '';
+                nuevaFila.querySelector('input[name="cantidades_venta[]"]').value = '1';
+                contenedor.appendChild(nuevaFila);
+            });
+
+            contenedor.addEventListener('click', function(e) {
+                if(e.target.closest('.btn-eliminar-fila')) {
+                    const filasActuales = contenedor.querySelectorAll('.fila-venta').length;
+                    if(filasActuales > 1) {
+                        e.target.closest('.fila-venta').remove();
+                    } else {
+                        alert("⚠️ Debes cobrar al menos un platillo.");
+                    }
+                }
+            });
+
+            // Evitar que puedan escribir más puntos de los que tienen
+            const inputPuntos = document.getElementById('modal-puntos');
+            inputPuntos.addEventListener('input', function() {
+                const max = parseFloat(this.max);
+                if (this.value > max) {
+                    this.value = max;
+                }
+            });
+        });
+
+        const modal = document.getElementById('modal-pago');
+        const formVenta = document.getElementById('form-venta');
+        const inputMetodoPago = document.getElementById('input-metodo-pago');
+
+        function abrirModalPago() {
+            const primerPlatillo = document.querySelector('input[name="platillos[]"]').value;
+            if(!primerPlatillo) {
+                alert("Primero debes escribir qué platillo vas a cobrar.");
+                return;
+            }
+
+            // ✨ BUSCADOR INTELIGENTE: Ignora espacios fantasma y mayúsculas ✨
+            const clienteRaw = document.getElementById('input-cliente-venta').value.trim();
+            const clienteBuscado = clienteRaw.toLowerCase(); // Lo pasamos a minúsculas para buscarlo
+
+            const seccionPuntos = document.getElementById('seccion-puntos-modal');
+            const labelPuntos = document.getElementById('label-puntos-modal');
+            const inputPuntos = document.getElementById('modal-puntos');
+
+            // Limpiamos la caja por seguridad cada que se abre
+            inputPuntos.value = '';
+
+            // Validamos que sea un cliente real (buscándolo en minúsculas) y que NO sea "general"
+            if (clienteBuscado && clienteBuscado !== "general" && clientesPuntos.hasOwnProperty(clienteBuscado)) {
+
+                const puntosDisponibles = clientesPuntos[clienteBuscado];
+                labelPuntos.innerHTML = `Pagar con Puntos (Disponibles: <span class="text-indigo-600 font-black">${puntosDisponibles}</span>):`;
+                inputPuntos.max = puntosDisponibles;
+
+                // Si el cliente tiene 0 puntos, bloqueamos la cajita
+                if (puntosDisponibles <= 0) {
+                    inputPuntos.disabled = true;
+                    inputPuntos.placeholder = "No hay puntos disponibles";
+                } else {
+                    inputPuntos.disabled = false;
+                    inputPuntos.placeholder = "Cantidad de puntos a usar...";
+                }
+
+                seccionPuntos.classList.remove('hidden');
+            } else {
+                // Solo ocultamos todo si es Venta General o si dejaron el campo vacío
+                seccionPuntos.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function cerrarModalPago() {
+            modal.classList.add('hidden');
+        }
+
+        function confirmarPago(metodo) {
+            document.getElementById('hidden-descuento-pct').value = document.getElementById('modal-descuento-pct').value || 0;
+            document.getElementById('hidden-motivo').value = document.getElementById('modal-motivo').value || '';
+            document.getElementById('hidden-puntos').value = document.getElementById('modal-puntos').value || 0;
+
+            inputMetodoPago.value = metodo;
+            cerrarModalPago();
+            formVenta.submit();
+        }
+    </script>
+</body>
+</html>

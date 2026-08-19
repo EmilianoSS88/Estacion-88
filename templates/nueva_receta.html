@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Receta | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans min-h-screen flex items-center justify-center">
+
+    <div class="max-w-3xl w-full mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+
+        <div class="mb-8 border-b pb-4 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-orange-600 tracking-tight">Agregar a Recetario</h1>
+            <a href="/recetas" class="text-slate-500 hover:text-slate-800 font-bold text-sm bg-slate-100 hover:bg-slate-200 py-2 px-4 rounded-lg transition-colors">
+                ⬅ Volver
+            </a>
+        </div>
+
+        <form method="POST" action="/nueva_receta" class="flex flex-col gap-6">
+
+            <div>
+                <label for="platillo" class="block text-sm font-bold text-slate-700 mb-2">Nombre del Platillo Completo:</label>
+                <input list="lista-platillos" name="platillo" id="platillo" required placeholder="Ej. Chapata Semillas Mixtas" autocomplete="off" class="w-full py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm">
+                <datalist id="lista-platillos">
+                    {% for nombre in platillos_disponibles %}
+                        <option value="{{ nombre }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2">Ingredientes (Agrega todos los que necesites):</label>
+
+                <div id="contenedor-ingredientes" class="flex flex-col gap-3">
+                    <div class="flex gap-4 items-center fila-ingrediente bg-slate-50 p-3 rounded border border-slate-200">
+                        <input list="lista-insumos" name="insumos[]" placeholder="Buscar insumo..." class="flex-1 py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="number" step="any" name="cantidades[]" placeholder="Cant. (Ej. 0.5)" class="w-32 py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <button type="button" onclick="agregarFila()" class="mt-3 text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    ➕ Añadir otro ingrediente
+                </button>
+
+                <datalist id="lista-insumos">
+                    {% for item in inventario %}
+                        <option value="{{ item['Producto'] }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <button type="submit" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all text-lg w-full">
+                💾 Guardar Receta Completa
+            </button>
+
+        </form>
+    </div>
+
+    <script>
+        function agregarFila() {
+            const contenedor = document.getElementById('contenedor-ingredientes');
+            const primeraFila = contenedor.querySelector('.fila-ingrediente');
+            const nuevaFila = primeraFila.cloneNode(true);
+            // Limpiamos los textos que se hayan copiado
+            nuevaFila.querySelectorAll('input').forEach(input => input.value = '');
+            contenedor.appendChild(nuevaFila);
+        }
+    </script>
+</body>
+</html>

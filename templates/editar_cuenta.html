@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Cuenta | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans min-h-screen">
+    <div class="max-w-4xl mx-auto">
+
+        <!-- CABECERA -->
+        <div class="flex items-center gap-4 mb-8">
+            <a href="/historial" class="text-3xl text-slate-400 hover:text-slate-700 transition-colors">⬅</a>
+            <div>
+                <h1 class="text-4xl font-extrabold text-slate-800 tracking-tight">Cuenta #{{ recibo }}</h1>
+                <p class="text-slate-500 mt-1">Cliente Asignado: <strong class="text-indigo-600">{{ cliente }}</strong></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- COLUMNA IZQUIERDA: LO QUE YA ESTÁ EN LA CUENTA -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">Platillos Cargados</h2>
+                
+                <div class="flex flex-col gap-3 max-h-96 overflow-y-auto pr-2">
+                    {% for item in items %}
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div>
+                            <p class="font-bold text-slate-700 text-sm">{{ item.platillo }}</p>
+                            <p class="text-emerald-600 font-black text-xs">${{ "{:,.2f}".format(item.precio) }}</p>
+                        </div>
+                        <form method="POST" action="/eliminar_de_cuenta">
+                            <input type="hidden" name="id_fila" value="{{ item.id_fila }}">
+                            <input type="hidden" name="recibo" value="{{ recibo }}">
+                            <button type="submit" onclick="return confirm('¿Seguro que deseas eliminar este platillo de la cuenta?')" class="bg-red-50 hover:bg-red-500 text-red-500 hover:text-white p-2 rounded-lg transition-colors shadow-sm text-xs" title="Eliminar de la cuenta">
+                                🗑️
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-6 pt-4 border-t flex justify-between items-center">
+                    <span class="text-slate-500 font-bold uppercase text-xs tracking-wider">Total de la Cuenta:</span>
+                    <span class="text-2xl font-black text-emerald-600">${{ "{:,.2f}".format(total) }}</span>
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA: AÑADIR NUEVOS PLATILLOS -->
+            <div class="bg-slate-100 p-6 rounded-2xl border border-slate-200">
+                <h2 class="text-lg font-bold text-indigo-700 mb-4 border-b border-indigo-200 pb-2">➕ Agregar a esta cuenta</h2>
+                
+                <form method="POST" action="/vender_platillo" class="flex flex-col gap-4" onkeydown="return event.key != 'Enter';">
+                    <input type="hidden" name="recibo_existente" value="{{ recibo }}">
+                    <input type="hidden" name="cliente_venta" value="{{ cliente }}">
+                    
+                    <div id="contenedor-platillos-venta" class="flex flex-col gap-3">
+                        <div class="fila-venta flex flex-col items-center gap-3 w-full relative">
+                            <input list="lista-platillos-venta" name="platillos[]" required placeholder="Buscar platillo..." autocomplete="off" class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-700 shadow-sm text-sm">
+                            
+                            <div class="flex items-center gap-3 w-full justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-slate-500">Cantidad:</span>
+                                    <input type="number" name="cantidades_venta[]" value="1" min="1" required class="w-20 py-2 px-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold text-indigo-600 shadow-sm">
+                                </div>
+                                <button type="button" class="btn-eliminar-fila bg-red-100 text-red-500 py-1.5 px-3 rounded-lg text-xs font-bold transition-colors">Quitar</button>
+                            </div>
+                            <hr class="w-full border-slate-200 mt-2">
+                        </div>
+                    </div>
+
+                    <datalist id="lista-platillos-venta">
+                        {% for nombre in platillos_disponibles %}
+                            <option value="{{ nombre }}">{{ nombre }}</option>
+                        {% endfor %}
+                    </datalist>
+
+                    <div class="flex justify-between items-center mt-4">
+                        <button type="button" id="btn-agregar-fila" class="text-indigo-600 font-bold text-xs hover:underline">
+                            + Añadir otra fila
+                        </button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-sm transition-all shadow-indigo-200">
+                            Añadir Platillos
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const contenedor = document.getElementById('contenedor-platillos-venta');
+            const btnAgregar = document.getElementById('btn-agregar-fila');
+
+            btnAgregar.addEventListener('click', function() {
+                const primeraFila = contenedor.querySelector('.fila-venta');
+                const nuevaFila = primeraFila.cloneNode(true);
+                nuevaFila.querySelector('input[name="platillos[]"]').value = '';
+                nuevaFila.querySelector('input[name="cantidades_venta[]"]').value = '1';
+                contenedor.appendChild(nuevaFila);
+            });
+
+            contenedor.addEventListener('click', function(e) {
+                if(e.target.closest('.btn-eliminar-fila')) {
+                    const filasActuales = contenedor.querySelectorAll('.fila-venta').length;
+                    if(filasActuales > 1) {
+                        e.target.closest('.fila-venta').remove();
+                    } else {
+                        alert("⚠️ Debes añadir al menos un platillo nuevo o regresar al historial.");
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

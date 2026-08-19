@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corte de Caja | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans min-h-screen">
+    <div class="max-w-5xl mx-auto">
+
+        <!-- ENCABEZADO -->
+        <div class="flex items-center justify-between mb-8 border-b pb-4 border-slate-200">
+            <div class="flex items-center gap-4">
+                <a href="/" class="text-3xl text-slate-400 hover:text-slate-700 transition-colors">⬅</a>
+                <div>
+                    <h1 class="text-4xl font-extrabold text-slate-800 tracking-tight">Control de Caja</h1>
+                    <p class="text-slate-500 mt-0.5">Operación de caja y auditorías financieras del día: <strong class="text-slate-700">{{ fecha }}</strong></p>
+                </div>
+            </div>
+            <div>
+                {% if estado_turno == 'Sin_Abrir' %}
+                    <span class="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full font-bold text-xs uppercase tracking-wider border border-gray-300 shadow-sm">💤 Sin Abrir</span>
+                {% elif estado_turno == 'Abierto' %}
+                    <span class="bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full font-bold text-xs uppercase tracking-wider border border-emerald-300 shadow-sm animate-pulse">🟢 En Operación</span>
+                {% else %}
+                    <form action="/reabrir_turno" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas REABRIR el turno de hoy? Podrás seguir registrando ventas y retiros de inmediato.')">
+                        <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 hover:text-red-900 px-4 py-1.5 rounded-full font-bold text-xs uppercase tracking-wider border border-red-300 shadow-sm transition-colors flex items-center gap-1 cursor-pointer" title="Clic para reabrir la caja">
+                            🔒 Turno Cerrado (Reabrir)
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if estado_turno == 'Sin_Abrir' %}
+            <!-- PANTALLA 1: FORMULARIO DE CAPTURA DE FONDO INICIAL -->
+            <div class="bg-white p-10 rounded-2xl shadow-sm border border-slate-200 text-center max-w-md mx-auto mt-12">
+                <div class="text-5xl mb-4">☕</div>
+                <h2 class="text-2xl font-black text-slate-800 mb-1">Apertura de Caja</h2>
+                <p class="text-slate-400 text-sm mb-6">Ingresa el dinero base (fondo de caja) con el que inicia el cajón hoy.</p>
+
+                <form action="/abrir_turno" method="POST" class="space-y-4">
+                    <input type="number" name="fondo_inicial" placeholder="$0.00" required min="0" step="any" class="w-full py-4 text-center text-4xl font-black text-emerald-600 border border-gray-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all text-base w-full">
+                        Abrir Caja e Iniciar Turno
+                    </button>
+                </form>
+            </div>
+
+        {% elif estado_turno == 'Abierto' %}
+            <!-- PANTALLA 2: DASHBOARD EN CALIENTE (TURNO ABIERTO) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Tarjeta Efectivo Esperado -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between border-l-4 border-l-emerald-500">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Efectivo Calculado</h3>
+                        <div class="space-y-1.5 text-sm text-slate-600">
+                            <div class="flex justify-between"><span>(+) Fondo Base:</span> <span class="font-bold text-slate-700">${{ "{:,.2f}".format(fondo_inicial) }}</span></div>
+                            <div class="flex justify-between"><span>(+) Ventas Caja:</span> <span class="font-bold text-emerald-600">+${{ "{:,.2f}".format(desglose_ventas['Efectivo']) }}</span></div>
+                            <div class="flex justify-between"><span>(-) Gastos/Retiros:</span> <span class="font-bold text-red-500">-${{ "{:,.2f}".format(total_gastos) }}</span></div>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-baseline">
+                        <span class="text-xs font-bold text-slate-500 uppercase">En Caja:</span>
+                        <span class="text-3xl font-black text-slate-800">${{ "{:,.2f}".format(efectivo_esperado) }}</span>
+                    </div>
+                </div>
+
+                <!-- Tarjeta Desglose Otros Métodos -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between border-l-4 border-l-blue-500">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Otros Métodos</h3>
+                        <div class="space-y-1.5 text-sm text-slate-600">
+                            <div class="flex justify-between"><span>💳 Tarjeta:</span> <span class="font-bold text-slate-700">${{ "{:,.2f}".format(desglose_ventas['Tarjeta']) }}</span></div>
+                            <div class="flex justify-between"><span>📱 Transferencia:</span> <span class="font-bold text-slate-700">${{ "{:,.2f}".format(desglose_ventas['Transferencia']) }}</span></div>
+                            <div class="flex justify-between"><span>⏳ Pendientes:</span> <span class="font-bold text-amber-600">${{ "{:,.2f}".format(desglose_ventas['Credito']) }}</span></div>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-baseline">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Total Ventas:</span>
+                        <span class="text-2xl font-black text-indigo-600">${{ "{:,.2f}".format(total_ventas) }}</span>
+                    </div>
+                </div>
+
+                <!-- MÓDULO DE GASTOS CON REDUCCIÓN AUTOMÁTICA -->
+                <div class="bg-red-50/60 p-6 rounded-2xl border border-red-200 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-red-800 uppercase tracking-wider mb-2">💸 Registrar Retiro / Gasto</h3>
+                        <form action="/registrar_gasto" method="POST" class="space-y-2">
+                            <input type="text" name="concepto" placeholder="Concepto (Ej. Hielo, Servilletas)" required class="w-full p-2 text-xs border border-red-200 rounded-lg bg-white outline-none">
+                            <input type="number" name="monto" placeholder="Monto ($)" min="1" step="any" required class="w-full p-2 text-xs border border-red-200 rounded-lg bg-white font-bold text-red-600 outline-none">
+                            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs transition-colors shadow-sm">
+                                Registrar y Restar del Balance
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA DE MOVIMIENTOS Y CONTROL DE CIERRE -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 md:col-span-2">
+                    <h3 class="text-base font-bold text-slate-800 mb-4">Bitácora de Gastos de Hoy</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-2.5 font-bold text-slate-500 uppercase">Concepto</th>
+                                    <th class="px-4 py-2.5 font-bold text-slate-500 uppercase text-right">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for g in gastos %}
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-4 py-3 text-slate-700">{{ g.Concepto }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-red-600 flex items-center justify-end gap-3">
+                                        -${{ "{:,.2f}".format(g.Monto|float) }}
+
+                                        <!-- ✨ BOTÓN PARA ELIMINAR EL GASTO ✨ -->
+                                        <form action="/eliminar_gasto/{{ g.id_fila }}" method="POST" onsubmit="return confirm('¿Seguro que deseas cancelar este gasto? El dinero se sumará nuevamente a la caja.')" class="inline m-0 p-0">
+                                            <button type="submit" class="bg-red-100 hover:bg-red-500 text-red-500 hover:text-white rounded px-2 py-0.5 font-black transition-colors" title="Cancelar Gasto">✕</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="2" class="px-4 py-6 text-center italic text-slate-400">No hay retiros registrados hoy.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- FORMULARIO DE CAPTURA DE EFECTIVO PARA EL CIERRE -->
+                <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-md flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-200 mb-2">🔒 Cierre de Turno</h3>
+                        <p class="text-xs text-slate-400 mb-4">Cuenta el efectivo real que tienes en el cajón físico e ingrésalo aquí para auditar el turno.</p>
+
+                        <form id="form-cierre" action="/cerrar_turno" method="POST" class="space-y-4">
+                            <div>
+                                <label class="block text-[10px] uppercase font-black text-slate-400 mb-1 tracking-wider">Efectivo Real en Mano ($):</label>
+                                <input type="number" name="efectivo_real" placeholder="$0.00" min="0" step="any" required class="w-full p-3 text-center text-2xl font-black text-emerald-400 border border-slate-600 bg-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-400 outline-none">
+                            </div>
+                        </form>
+                    </div>
+                    <button type="submit" form="form-cierre" onclick="return confirm('¿Confirmas que deseas cerrar la caja hoy? Esta acción es irreversible.')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black py-3 rounded-xl text-sm transition-all mt-4">
+                        Cerrar Caja y Registrar Totales
+                    </button>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- PANTALLA 3: VISTA DE AUDITORÍA HISTÓRICA COMPLETA (TURNO CERRADO) -->
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-xl mx-auto mt-6">
+                <div class="text-center mb-6">
+                    <div class="text-5xl mb-2">📊</div>
+                    <h2 class="text-2xl font-black text-slate-800">Resumen del Turno Cerrado</h2>
+                    <p class="text-xs text-slate-400">Cuentas consolidadas de la jornada del día</p>
+                </div>
+
+                <div class="space-y-3 text-sm border-t border-b py-4 my-4 border-dashed border-slate-300">
+                    <div class="flex justify-between text-slate-600"><span>Fondo Inicial de Cambio:</span> <span class="font-bold">${{ "{:,.2f}".format(fondo_inicial) }}</span></div>
+                    <div class="flex justify-between text-slate-600"><span>Ventas Totales en Efectivo:</span> <span class="font-bold text-emerald-600">+${{ "{:,.2f}".format(desglose_ventas['Efectivo']) }}</span></div>
+                    <div class="flex justify-between text-slate-600"><span>Total Retiros (Gastos):</span> <span class="font-bold text-red-500">-${{ "{:,.2f}".format(total_gastos) }}</span></div>
+                    <div class="flex justify-between font-bold text-slate-700 pt-2 border-t border-slate-200"><span>Efectivo Calculado (Esperado):</span> <span>${{ "{:,.2f}".format(efectivo_esperado) }}</span></div>
+                    <div class="flex justify-between font-extrabold text-indigo-600"><span>Efectivo Contado (Real):</span> <span>${{ "{:,.2f}".format(fondo_final_real) }}</span></div>
+                </div>
+
+                <div class="p-4 rounded-xl text-center font-black text-base {% if diferencia == 0 %}bg-emerald-100 text-emerald-800{% elif diferencia < 0 %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                    {% if diferencia == 0 %}
+                        ✅ Caja Perfectamente Cuadrada ($0.00)
+                    {% elif diferencia < 0 %}
+                        ⚠️ Descrepancia: Faltante de -${{ "{:,.2f}".format(diferencia|abs) }}
+                    {% else %}
+                        ⚠️ Descrepancia: Sobrante de +${{ "{:,.2f}".format(diferencia) }}
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+</body>
+</html>

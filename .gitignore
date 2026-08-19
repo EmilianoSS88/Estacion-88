@@ -1,0 +1,18 @@
+# Archivos de datos locales
+*.csv
+
+# Variables de entorno y secretos
+.env
+
+# Temporales de Python
+__pycache__/
+*.pyc
+
+# Configuracion de VS Code
+.vscode/
+
+# Respaldos
+*.zip
+*.bak
+*.rar
+respaldo_csv/

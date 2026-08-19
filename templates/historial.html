@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial y Finanzas | Estación 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans min-h-screen relative">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- CABECERA -->
+        <div class="flex items-center gap-4 mb-8">
+            <a href="/" class="text-3xl text-slate-400 hover:text-slate-700 transition-colors" title="Volver al panel principal">⬅</a>
+            <div>
+                <h1 class="text-4xl font-extrabold text-slate-800 tracking-tight">Historial de Ventas</h1>
+                <p class="text-slate-500 mt-1">Desglose de ingresos y liquidación de cuentas por cobrar.</p>
+            </div>
+        </div>
+
+        <!-- TARJETAS DE MÉTODOS DE PAGO -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500">
+                <p class="text-sm font-bold text-emerald-600 mb-1">💵 Total en Efectivo</p>
+                <p class="text-3xl font-black text-slate-800">${{ "{:,.2f}".format(totales['Efectivo']) }}</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-blue-100 border-l-4 border-l-blue-500">
+                <p class="text-sm font-bold text-blue-600 mb-1">💳 Total en Tarjeta</p>
+                <p class="text-3xl font-black text-slate-800">${{ "{:,.2f}".format(totales['Tarjeta']) }}</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-purple-100 border-l-4 border-l-purple-500">
+                <p class="text-sm font-bold text-purple-600 mb-1">📱 Total en Transferencia</p>
+                <p class="text-3xl font-black text-slate-800">${{ "{:,.2f}".format(totales['Transferencia']) }}</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-amber-100 border-l-4 border-l-amber-500 relative overflow-hidden">
+                <div class="absolute top-0 right-0 bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">PENDIENTE</div>
+                <p class="text-sm font-bold text-amber-600 mb-1">⏳ Cuentas por Cobrar</p>
+                <p class="text-3xl font-black text-slate-800">${{ "{:,.2f}".format(totales['Credito']) }}</p>
+            </div>
+        </div>
+
+        <!-- TABLA DE MOVIMIENTOS -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-slate-800">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Recibo</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Fecha</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Cliente</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Consumo</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Monto Total</th>
+                            <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Estado y Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white">
+                        {% for venta in ventas %}
+                        <tr class="hover:bg-slate-50 transition-colors {% if venta.metodo == 'Credito' %}bg-amber-50/50{% endif %}">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">#{{ venta.recibo }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-medium">{{ venta.fecha }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{{ venta.cliente }}</td>
+                            <td class="px-6 py-4 text-sm text-slate-600">{{ venta.platillo }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-black text-emerald-600">${{ "{:,.2f}".format(venta.precio) }}</td>
+                            
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center justify-between gap-4">
+                                    
+                                    <!-- ETIQUETA O BOTÓN DE COBRAR -->
+                                    <div class="w-32 flex justify-center">
+                                        {% if venta.metodo == 'Efectivo' %}
+                                            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 w-full justify-center">💵 Efectivo</span>
+                                        {% elif venta.metodo == 'Tarjeta' %}
+                                            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 w-full justify-center">💳 Tarjeta</span>
+                                        {% elif venta.metodo == 'Transferencia' %}
+                                            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 w-full justify-center">📱 Transfer</span>
+                                        {% else %}
+                                            <button onclick="abrirModalLiquidacion('{{ venta.agrupador }}')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-1.5 px-3 rounded-full text-[11px] shadow-sm transition-colors w-full flex items-center justify-center uppercase tracking-wider animate-pulse">
+                                                💲 Cobrar
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- BOTONES DE ACCIÓN (SIEMPRE VISIBLES) -->
+                                    <div class="flex items-center gap-2">
+                                        <a href="/editar_cuenta/{{ venta.agrupador }}" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 p-2.5 rounded-full shadow-sm transition-colors border border-indigo-200" title="Añadir o quitar platillos">
+                                            ✏️
+                                        </a>
+                                        
+                                        <a href="/reimprimir_ticket/{{ venta.id }}" target="_blank" class="bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-slate-900 p-2.5 rounded-full shadow-sm transition-colors border border-slate-200" title="Ver Ticket Original">
+                                            🖨️
+                                        </a>
+                                    </div>
+
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- VENTANA FLOTANTE PARA COBRAR DEUDAS -->
+    <div id="modal-liquidacion" class="hidden fixed inset-0 bg-slate-900 bg-opacity-75 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative transform transition-all">
+            
+            <button onclick="cerrarModalLiquidacion()" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 text-2xl font-bold transition-colors">✕</button>
+            
+            <h3 class="text-2xl font-extrabold text-slate-800 mb-2 text-center">Liquidar Cuenta</h3>
+            <p class="text-slate-500 text-sm text-center mb-6">Elige el método con el que el cliente pagó la deuda.</p>
+            
+            <form id="form-liquidar" method="POST" action="/pagar_credito">
+                <input type="hidden" name="agrupador" id="input-agrupador" value="">
+                <input type="hidden" name="nuevo_metodo" id="input-nuevo-metodo" value="">
+            </form>
+
+            <div class="grid grid-cols-3 gap-4">
+                <button onclick="confirmarLiquidacion('Efectivo')" class="flex flex-col items-center justify-center gap-2 p-4 bg-emerald-50 hover:bg-emerald-500 hover:text-white text-emerald-700 rounded-xl border border-emerald-200 transition-all group">
+                    <span class="text-3xl">💵</span>
+                    <span class="font-bold text-xs uppercase">Efectivo</span>
+                </button>
+                <button onclick="confirmarLiquidacion('Tarjeta')" class="flex flex-col items-center justify-center gap-2 p-4 bg-blue-50 hover:bg-blue-500 hover:text-white text-blue-700 rounded-xl border border-blue-200 transition-all group">
+                    <span class="text-3xl">💳</span>
+                    <span class="font-bold text-xs uppercase">Tarjeta</span>
+                </button>
+                <button onclick="confirmarLiquidacion('Transferencia')" class="flex flex-col items-center justify-center gap-2 p-4 bg-purple-50 hover:bg-purple-500 hover:text-white text-purple-700 rounded-xl border border-purple-200 transition-all group">
+                    <span class="text-3xl">📱</span>
+                    <span class="font-bold text-xs uppercase">Transfer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const modalLiquidacion = document.getElementById('modal-liquidacion');
+        const formLiquidar = document.getElementById('form-liquidar');
+        const inputAgrupador = document.getElementById('input-agrupador');
+        const inputNuevoMetodo = document.getElementById('input-nuevo-metodo');
+
+        function abrirModalLiquidacion(agrupador) {
+            inputAgrupador.value = agrupador;
+            modalLiquidacion.classList.remove('hidden');
+        }
+
+        function cerrarModalLiquidacion() {
+            modalLiquidacion.classList.add('hidden');
+        }
+
+        function confirmarLiquidacion(metodo) {
+            inputNuevoMetodo.value = metodo;
+            cerrarModalLiquidacion();
+            formLiquidar.submit();
+        }
+    </script>
+</body>
+</html>
