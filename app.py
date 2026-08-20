@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '.env'))
 
-# Zona horaria de la Ciudad de México (Gustavo A. Madero / UTC-6)
+# Zona horaria de la Ciudad de México (UTC-6)
 ZONA_CDMX = pytz.timezone('America/Mexico_City')
 
 def obtener_ahora():
@@ -23,7 +23,7 @@ def obtener_fecha_hoy():
     return obtener_ahora().strftime('%Y-%m-%d')
 
 app = Flask(__name__)
-# 👇 Esta llave secreta es obligatoria para usar sesiones. ¡No la borres!
+# Esta llave secreta es obligatoria para usar sesiones.
 app.secret_key = os.getenv('FLASK_SECRET', 'estacion88_llave_super_secreta')
 
 # Creamos las listas globales en la memoria
@@ -119,7 +119,7 @@ def cargar_datos_iniciales():
                 except (ValueError, TypeError):
                     cantidad_uso = 0.0
 
-                # 👇 NUEVO: Atrapamos el margen de ganancia (40% por defecto)
+                # Atrapamos el margen de ganancia (40% por defecto)
                 try:
                     margen_str = str(fila.get('Margen', 40)).replace('%', '').strip()
                     margen_val = float(margen_str) if margen_str else 40.0
@@ -220,7 +220,7 @@ def webhook_telegram():
                     insumos_faltantes.append(f"• {nombre_producto}: Faltan {a_comprar} {medida} (aprox ${round(costo, 2)})")
                     costo_total += costo
 
-            # ✂️ EL TRUCO DEL INGENIERO: Cortar el mensaje si es muy largo
+            # Cortar el mensaje si es muy largo
             if insumos_faltantes:
                 mensajes_a_enviar = []
                 mensaje_actual = "📋 *Lista de Insumos Faltantes de Estación 88*\n\n"
@@ -266,7 +266,7 @@ def webhook_telegram():
                 except Exception as e:
                     print("🤖 [TELEGRAM] ERROR AL ENVIAR:", e)
 
-    # Le respondemos 200 a Telegram para que deje de reintentar como loco
+    # Le respondemos 200 a Telegram para que deje de reintentar
     return "OK", 200
 
 def redondear_comercial(precio):
@@ -274,7 +274,7 @@ def redondear_comercial(precio):
     parte_entera = int(precio)
     centavos = precio - parte_entera
 
-    # Aplicamos la regla de tu mamá ☕
+    # Aplicamos la regla
     if centavos >= 0.50:
         return parte_entera + 1
     else:
@@ -386,7 +386,7 @@ def inventario():
     resultados = sorted(resultados, key=lambda x: x['Producto'].lower())
     lista_de_platillos = list(set([receta['Platillo'] for receta in recetas_bd if receta.get('Platillo')]))
 
-    # Limpiamos esta ruta (ya no necesita el print ni la variable clientes)
+    # Limpiamos esta ruta
     return render_template('index.html',
                            total_productos=len(resultados),
                            inventario=resultados,
@@ -415,7 +415,7 @@ def suscripciones():
         telefono = request.form.get('telefono', '')
         cumpleanos = request.form.get('cumpleanos', '')
 
-        # Si es un plan semanal, hacemos tu matemática de 7 días
+        # Si es un plan semanal, hacemos matemática de 7 días
         if plan in ['Desayunos', 'Comidas', 'Plan Completo']:
             fecha_inicio = request.form.get('fecha_inicio')
             if not fecha_inicio: fecha_inicio = obtener_fecha_hoy()
@@ -476,14 +476,14 @@ def suscripciones():
                 if 'Cumpleanos' not in fila: fila['Cumpleanos'] = ''
                 if 'Puntos' not in fila: fila['Puntos'] = 0
 
-                # Tu lógica de AUTO-EXPIRACIÓN
+                # Lógica de AUTO-EXPIRACIÓN
                 if fila.get('Estado') == 'Activo' and hoy > fila.get('Fecha_Fin', '9999-99-99'):
                     fila['Estado'] = 'Expirado'
                     hubo_cambios = True
 
                 lista_subs.append(fila)
 
-                # Tu CONTADOR DE ANALÍTICA LOCAL
+                # CONTADOR DE ANALÍTICA LOCAL
                 if fila.get('Estado') == 'Activo':
                     activas += 1
                     plan_actual = fila.get('Plan')
@@ -619,7 +619,7 @@ def vender_platillo():
         num_recibo = f"1-{random.randint(1000, 9999)}"
         metodo_pago = request.form.get('metodo_pago', 'Efectivo')
 
-    # ✨ ATRAPAMOS EL PORCENTAJE DE DESCUENTO Y LOS PUNTOS ✨
+    # ATRAPAMOS EL PORCENTAJE DE DESCUENTO Y LOS PUNTOS
     try: descuento_pct = float(request.form.get('descuento_pct', 0))
     except: descuento_pct = 0.0
     motivo_descuento = request.form.get('motivo_descuento', '').strip() or "General"
@@ -683,7 +683,7 @@ def vender_platillo():
                         try: producto['Cantidad'] = max(0.0, float(producto['Cantidad']) - (float(ingrediente['Cantidad a utilizar']) * cant_actual))
                         except: pass
 
-        # ✨ MATEMÁTICA DEL DESCUENTO Y LOS PUNTOS ✨
+        # MATEMÁTICA DEL DESCUENTO Y LOS PUNTOS
         monto_descuento = round(total_compra_bruto * (descuento_pct / 100), 2)
         total_neto = total_compra_bruto - monto_descuento - puntos_descontar
         total_neto = max(0.0, total_neto) # Evitar saldos negativos
@@ -707,7 +707,7 @@ def vender_platillo():
             escritor.writeheader()
             for p in base_de_datos: escritor.writerow(p)
 
-    # 4. 🔥 SISTEMA DE PUNTOS: RESTAR USADOS Y SUMAR NUEVOS 🔥
+    # 4. SISTEMA DE PUNTOS: RESTAR USADOS Y SUMAR NUEVOS
     puntos_ganados = 0.0
     puntos_totales = 0.0
 
@@ -862,11 +862,11 @@ def nueva_receta():
         except ValueError:
             margen_ganancia = 40.0
 
-        # EL TRUCO: .getlist() atrapa todas las cajas de texto de un jalón
+        # .getlist() atrapa todas las cajas de texto de un jalón
         lista_insumos = request.form.getlist('insumos[]')
         lista_cantidades = request.form.getlist('cantidades[]')
 
-        # ✨ NUESTRO CANDADO: Solo 4 columnas, cero fantasmas ✨
+        # Solo 4 columnas
         encabezados_oficiales = ['Platillo', 'Insumo', 'Cantidad a utilizar', 'Margen']
 
         with open('recetas.csv', mode='a', encoding='utf-8', newline='') as archivo:
@@ -1089,10 +1089,10 @@ def analiticas():
             for fila in csv.DictReader(f):
                 if fila.get('Estado') == 'Activo': activas += 1
 
-    # ✨ APLICAMOS REDONDEO SOLO A LAS VENTAS, EL INVENTARIO CONSERVA SUS DECIMALES ✨
+    # APLICAMOS REDONDEO SOLO A LAS VENTAS, EL INVENTARIO CONSERVA SUS DECIMALES 
     return render_template('analiticas.html',
-                           valor_inventario=f"${valor_total:,.2f}",          # 👈 Decimales exactos restaurados
-                           dinero_reinversion=f"${dinero_reinvertir:,.2f}",  # 👈 Decimales exactos restaurados
+                           valor_inventario=f"${valor_total:,.2f}",        
+                           dinero_reinversion=f"${dinero_reinvertir:,.2f}", 
                            alertas_stock=productos_bajos,
                            desayunos_proyectados=activas * 5,
                            comidas_proyectadas=activas * 5,
@@ -1168,7 +1168,6 @@ def editar_stock():
                 lineas_actualizadas.append(fila)
 
         if hubo_cambio:
-            # 👇 AQUI ESTABA EL ERROR: GUARDAR con utf-8 normal para curar el archivo
             with open(archivo_inv, mode='w', encoding='utf-8', newline='') as f:
                 escritor = csv.DictWriter(f, fieldnames=encabezados, extrasaction='ignore')
                 escritor.writeheader()
@@ -1221,7 +1220,7 @@ def recetas():
                 recetas_agrupadas[platillo] = {
                     'insumos': [],
                     'costo_total': 0.0,
-                    'margen': float(margen_platillo), # Aseguramos que el margen sea un número
+                    'margen': float(margen_platillo), 
                     'precio_sugerido': 0.0
                 }
 
@@ -1240,7 +1239,7 @@ def recetas():
 
         precio_sugerido_bruto = data['costo_total'] / divisor
 
-        # ✨ AQUÍ APLICAMOS LA FUNCIÓN DE REDONDEO COMERCIAL ✨
+        # AQUÍ APLICAMOS LA FUNCIÓN DE REDONDEO COMERCIAL
         data['precio_sugerido'] = redondear_comercial(precio_sugerido_bruto)
 
         # Formateamos bonito con signos de pesos para que el HTML no sufra
@@ -1277,7 +1276,7 @@ def manejar_edicion_receta(platillo=None):
         archivo_recetas = 'recetas.csv'
         lineas_restantes = []
 
-        # ✨ LA SOLUCIÓN: Candado de 4 columnas oficiales. Cero comas fantasma. ✨
+        # LA SOLUCIÓN: Candado de 4 columnas oficiales. Cero comas fantasma.
         encabezados_oficiales = ['Platillo', 'Insumo', 'Cantidad a utilizar', 'Margen']
 
         if os.path.exists(archivo_recetas):
@@ -1286,9 +1285,9 @@ def manejar_edicion_receta(platillo=None):
 
                 for fila in lector:
                     if fila.get('Platillo', '').strip() != platillo_original:
-                        # Aspiradora: Limpiamos las recetas viejas que tenían comas de más o sin margen
+                        # Limpiamos las recetas viejas que tenían comas de más o sin margen
                         margen_limpio = fila.get('Margen', '')
-                        if not margen_limpio: # Si por error está vacío (como en el Glow cheese)
+                        if not margen_limpio: 
                             margen_limpio = 40.0
 
                         fila_limpia = {
@@ -1374,8 +1373,7 @@ def historial():
                         precio = 0.0
                     cliente = fila[3]
                     metodo = fila[4] if len(fila) >= 5 else 'Efectivo'
-
-                    # ✨ EL TRUCO: Usamos el Número de Recibo (6ta columna) para agrupar.
+                    
                     # Si la venta es vieja y no tiene recibo, usamos fecha+cliente para que no se borre.
                     recibo = fila[5] if len(fila) >= 6 else f"Antiguo-{fecha}-{cliente}"
 
