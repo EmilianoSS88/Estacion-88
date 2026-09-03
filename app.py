@@ -543,9 +543,14 @@ def editar_status_cliente():
 
 # --- RUTA: ELIMINAR CLIENTE DEL CATÁLOGO ---
 @app.route('/eliminar_cliente', methods=['POST'])
+@app.route('/eliminar_cliente/<path:cliente_nombre>', methods=['POST'])
 @login_required
-def eliminar_cliente():
-    cliente_a_borrar = request.form.get('cliente_eliminar')
+def eliminar_cliente(cliente_nombre=None):
+    cliente_a_borrar = cliente_nombre or request.form.get('cliente_eliminar') or request.form.get('cliente_nombre')
+    if not cliente_a_borrar:
+        return redirect(url_for('suscripciones'))
+
+    cliente_a_borrar = cliente_a_borrar.strip()
     archivo_subs = 'suscripciones.csv'
     encabezados = ['Cliente', 'Plan', 'Fecha_Inicio', 'Fecha_Fin', 'Estado', 'Telefono', 'Cumpleanos', 'Puntos']
 
@@ -555,7 +560,7 @@ def eliminar_cliente():
             lector = csv.DictReader(f)
             for fila in lector:
                 # Si el cliente no es el que queremos borrar, lo conservamos
-                if fila.get('Cliente', '').lower().strip() != cliente_a_borrar.lower().strip():
+                if fila.get('Cliente', '').lower().strip() != cliente_a_borrar.lower():
                     lineas_restantes.append(fila)
 
         # Volvemos a escribir el archivo sin el cliente eliminado
@@ -563,6 +568,60 @@ def eliminar_cliente():
             escritor = csv.DictWriter(f, fieldnames=encabezados, extrasaction='ignore')
             escritor.writeheader()
             escritor.writerows(lineas_restantes)
+
+    cargar_datos_iniciales()
+    return redirect(url_for('suscripciones'))
+
+# --- RUTA: EDITAR DATOS DEL CLIENTE (NOMBRE, TELÉFONO, CUMPLEAÑOS, PLAN, PUNTOS) ---
+@app.route('/editar_cliente', methods=['POST'])
+@login_required
+def editar_cliente():
+    cliente_original = request.form.get('cliente_original', '').strip()
+    nuevo_nombre = request.form.get('nuevo_nombre', '').strip()
+    nuevo_telefono = request.form.get('nuevo_telefono', '').strip()
+    nuevo_cumpleanos = request.form.get('nuevo_cumpleanos', '').strip()
+    nuevo_plan = request.form.get('nuevo_plan', '').strip()
+    try:
+        nuevos_puntos = float(request.form.get('nuevos_puntos', 0.0))
+    except (ValueError, TypeError):
+        nuevos_puntos = 0.0
+
+    if not cliente_original or not nuevo_nombre:
+        return redirect(url_for('suscripciones'))
+
+    archivo_subs = 'suscripciones.csv'
+    encabezados = ['Cliente', 'Plan', 'Fecha_Inicio', 'Fecha_Fin', 'Estado', 'Telefono', 'Cumpleanos', 'Puntos']
+
+    if os.path.exists(archivo_subs):
+        lineas_actualizadas = []
+        with open(archivo_subs, mode='r', encoding='utf-8') as f:
+            lector = csv.DictReader(f)
+            for fila in lector:
+                if fila.get('Cliente', '').lower().strip() == cliente_original.lower():
+                    fila['Cliente'] = nuevo_nombre
+                    fila['Telefono'] = nuevo_telefono
+                    fila['Cumpleanos'] = nuevo_cumpleanos
+                    fila['Puntos'] = round(nuevos_puntos, 2)
+                    if nuevo_plan:
+                        fila['Plan'] = nuevo_plan
+                lineas_actualizadas.append(fila)
+
+        with open(archivo_subs, mode='w', encoding='utf-8', newline='') as f:
+            escritor = csv.DictWriter(f, fieldnames=encabezados, extrasaction='ignore')
+            escritor.writeheader()
+            escritor.writerows(lineas_actualizadas)
+
+    # Si cambió el nombre del cliente, actualizar también en ventas.csv para mantener su historial
+    if cliente_original.lower() != nuevo_nombre.lower() and os.path.exists('ventas.csv'):
+        ventas_actualizadas = []
+        with open('ventas.csv', mode='r', encoding='utf-8') as f_v:
+            for row in csv.reader(f_v):
+                if len(row) >= 4 and row[3].lower().strip() == cliente_original.lower():
+                    row[3] = nuevo_nombre
+                ventas_actualizadas.append(row)
+        with open('ventas.csv', mode='w', encoding='utf-8', newline='') as f_v:
+            writer = csv.writer(f_v)
+            writer.writerows(ventas_actualizadas)
 
     cargar_datos_iniciales()
     return redirect(url_for('suscripciones'))

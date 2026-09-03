@@ -154,11 +154,20 @@
                             </td>
 
                             <td class="py-3 px-4 text-center">
-                                <form method="POST" action="/eliminar_cliente/{{ c.Cliente }}" onsubmit="return confirm('¿Seguro que quieres eliminar a este cliente? Se perderá todo su historial de puntos.');" class="inline m-0">
-                                    <button type="submit" class="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors shadow-sm outline-none border border-red-100 flex items-center justify-center mx-auto gap-1">
-                                        🗑️ <span class="hidden md:inline">Borrar</span>
+                                <div class="flex items-center justify-center gap-2">
+                                    <!-- BOTÓN EDITAR CLIENTE -->
+                                    <button type="button" onclick="abrirModalEditar('{{ c.Cliente }}', '{{ c.Telefono }}', '{{ c.Cumpleanos }}', '{{ c.Plan }}', '{{ c.Puntos }}')" class="text-indigo-600 hover:text-indigo-900 font-bold text-xs bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors shadow-sm outline-none border border-indigo-100 flex items-center gap-1 cursor-pointer" title="Editar datos del cliente">
+                                        ✏️ <span class="hidden md:inline">Editar</span>
                                     </button>
-                                </form>
+
+                                    <!-- BOTÓN BORRAR CLIENTE -->
+                                    <form method="POST" action="/eliminar_cliente" onsubmit="return confirm('¿Seguro que quieres eliminar a este cliente? Se perderá todo su historial de puntos.');" class="inline m-0">
+                                        <input type="hidden" name="cliente_eliminar" value="{{ c.Cliente }}">
+                                        <button type="submit" class="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors shadow-sm outline-none border border-red-100 flex items-center gap-1 cursor-pointer" title="Eliminar cliente">
+                                            🗑️ <span class="hidden md:inline">Borrar</span>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
 
                         </tr>
@@ -169,5 +178,75 @@
         </div>
 
     </div>
+    <!-- MODAL DE EDICIÓN DE CLIENTE -->
+    <div id="modal-editar-cliente" class="hidden fixed inset-0 bg-slate-900 bg-opacity-75 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+            <button onclick="cerrarModalEditar()" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 text-2xl font-bold transition-colors">✕</button>
+
+            <h3 class="text-xl font-extrabold text-slate-800 mb-1 text-center">✏️ Editar Cliente</h3>
+            <p class="text-slate-400 text-xs text-center mb-5">Actualiza la información personal, plan o saldo de puntos.</p>
+
+            <form action="/editar_cliente" method="POST" class="space-y-4">
+                <input type="hidden" name="cliente_original" id="edit-cliente-original">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Nombre Completo:</label>
+                    <input type="text" name="nuevo_nombre" id="edit-nombre" required class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Teléfono:</label>
+                        <input type="tel" name="nuevo_telefono" id="edit-telefono" placeholder="Ej. 55 1234 5678" class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Cumpleaños:</label>
+                        <input type="text" name="nuevo_cumpleanos" id="edit-cumpleanos" placeholder="Ej. 18 de Marzo" class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Plan:</label>
+                        <select name="nuevo_plan" id="edit-plan" class="w-full py-2 px-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+                            <option value="Cliente Regular">Cliente Regular</option>
+                            <option value="Desayunos">Desayunos</option>
+                            <option value="Comidas">Comidas</option>
+                            <option value="Plan Completo">Plan Completo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Puntos ($):</label>
+                        <input type="number" step="any" min="0" name="nuevos_puntos" id="edit-puntos" class="w-full py-2 px-3 border border-amber-200 bg-amber-50/40 rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-sm font-bold text-amber-700">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="cerrarModalEditar()" class="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow">
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalEditar(nombre, telefono, cumpleanos, plan, puntos) {
+            document.getElementById('edit-cliente-original').value = nombre;
+            document.getElementById('edit-nombre').value = nombre;
+            document.getElementById('edit-telefono').value = telefono || '';
+            document.getElementById('edit-cumpleanos').value = cumpleanos || '';
+            document.getElementById('edit-plan').value = plan || 'Cliente Regular';
+            document.getElementById('edit-puntos').value = puntos || 0;
+            document.getElementById('modal-editar-cliente').classList.remove('hidden');
+        }
+
+        function cerrarModalEditar() {
+            document.getElementById('modal-editar-cliente').classList.add('hidden');
+        }
+    </script>
 </body>
 </html>
