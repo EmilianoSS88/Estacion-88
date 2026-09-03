@@ -708,30 +708,33 @@ def vender_platillo():
             for p in base_de_datos: escritor.writerow(p)
 
     # 4. 🔥 SISTEMA DE PUNTOS: RESTAR USADOS Y SUMAR NUEVOS 🔥
-    puntos_ganados = 0.0
-    puntos_totales = 0.0
+    puntos_ganados = "N/A"
+    puntos_totales = "N/A"
 
     if cliente_elegido != 'General' and os.path.exists('suscripciones.csv'):
         lineas_clientes = []
         encabezados_c = ['Cliente', 'Plan', 'Fecha_Inicio', 'Fecha_Fin', 'Estado', 'Telefono', 'Cumpleanos', 'Puntos']
-        # Los puntos se ganan sobre el total NETO (después de descuentos)
-        puntos_ganados = round(total_neto * 0.05, 2)
+        cliente_encontrado = False
 
         with open('suscripciones.csv', mode='r', encoding='utf-8') as f:
             for fila in csv.DictReader(f):
                 if fila.get('Cliente', '').lower().strip() == cliente_elegido.lower():
+                    cliente_encontrado = True
                     try: pts_actuales = float(fila.get('Puntos', 0) or 0)
                     except: pts_actuales = 0.0
 
+                    # Los puntos se ganan sobre el total NETO (después de descuentos)
+                    puntos_ganados = round(total_neto * 0.05, 2)
                     # Matemática de la tarjeta de puntos: Saldo - Gastados + Ganados
                     puntos_totales = round(max(0.0, pts_actuales - puntos_descontar + puntos_ganados), 2)
                     fila['Puntos'] = puntos_totales
                 lineas_clientes.append(fila)
 
-        with open('suscripciones.csv', mode='w', encoding='utf-8', newline='') as f:
-            escritor = csv.DictWriter(f, fieldnames=encabezados_c, extrasaction='ignore')
-            escritor.writeheader()
-            escritor.writerows(lineas_clientes)
+        if cliente_encontrado:
+            with open('suscripciones.csv', mode='w', encoding='utf-8', newline='') as f:
+                escritor = csv.DictWriter(f, fieldnames=encabezados_c, extrasaction='ignore')
+                escritor.writeheader()
+                escritor.writerows(lineas_clientes)
 
     # 5. ALERTAS Y RUTEO
     if monto_descuento > 0: resumen_telegram.append(f"🔴 Descuento {int(descuento_pct)}%: -${int(monto_descuento)} ({motivo_descuento})")
@@ -1509,14 +1512,27 @@ def reimprimir_ticket(id_fila):
     elementos_ticket = list(elementos_agrupados.values())
     num_recibo_final = recibo_ref if recibo_ref else f"R-{id_fila}"
 
+    puntos_ganados = "N/A"
+    puntos_totales = "N/A"
+
+    if cliente_ref != 'General' and os.path.exists('suscripciones.csv'):
+        with open('suscripciones.csv', mode='r', encoding='utf-8') as f:
+            for fila in csv.DictReader(f):
+                if fila.get('Cliente', '').lower().strip() == cliente_ref.lower().strip():
+                    try: pts = float(fila.get('Puntos', 0) or 0)
+                    except: pts = 0.0
+                    puntos_totales = round(pts, 2)
+                    puntos_ganados = round(total_compra * 0.05, 2)
+                    break
+
     return render_template('ticket.html',
                            num_recibo=num_recibo_final,
                            fecha_ticket=fecha_ref,
                            cliente=cliente_ref,
                            elementos=elementos_ticket,
                            total=int(total_compra),
-                           puntos_ganados=0,
-                           puntos_totales="N/A",
+                           puntos_ganados=puntos_ganados,
+                           puntos_totales=puntos_totales,
                            metodo_pago=metodo_ref)
 
 # =====================================================================

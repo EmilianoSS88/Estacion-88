@@ -103,20 +103,18 @@
 
         <hr class="border-t-[1.5px] border-dashed border-gray-300 my-4">
 
-        {% if cliente != 'General' %}
         <div class="flex flex-col gap-1 text-sm font-medium">
             <div class="flex justify-between text-[#8DA973]">
                 <span>Puntos acumulados</span>
-                <span>${{ puntos_ganados }}</span>
+                <span>{% if puntos_ganados == 'N/A' %}N/A{% else %}${{ puntos_ganados }}{% endif %}</span>
             </div>
             <div class="flex justify-between text-[#8DA973]">
                 <span>Balance de puntos</span>
-                <span>${{ puntos_totales }}</span>
+                <span>{% if puntos_totales == 'N/A' %}N/A{% else %}${{ puntos_totales }}{% endif %}</span>
             </div>
         </div>
         
         <hr class="border-t-[1.5px] border-dashed border-gray-300 my-4">
-        {% endif %}
 
         <!-- Resumen de Pago -->
         <div class="border-t border-dashed border-gray-300 my-3 pt-2 space-y-1">
