@@ -1782,6 +1782,7 @@ def reimprimir_ticket(id_fila):
 @app.route('/caja')
 @login_required
 def modulo_caja():
+    cargar_datos_iniciales()
     auto_cerrar_turnos_vencidos()
     archivo_caja = 'caja.csv'
     fecha_hoy = obtener_fecha_hoy()
@@ -1841,11 +1842,23 @@ def modulo_caja():
         try: diferencia = float(turno_hoy.get('Diferencia', 0))
         except: diferencia = 0.0
 
-    return render_template('caja.html', estado_turno=estado_turno, fondo_inicial=fondo_inicial, desglose_ventas=desglose_ventas, total_ventas=total_ventas, gastos=gastos_hoy, total_gastos=total_gastos, efectivo_esperado=efectivo_esperado, fondo_final_real=fondo_final_real, diferencia=diferencia, fecha=fecha_hoy)
+    return render_template('caja.html',
+                           estado_turno=estado_turno,
+                           fondo_inicial=fondo_inicial,
+                           desglose_ventas=desglose_ventas,
+                           total_ventas=total_ventas,
+                           gastos=gastos_hoy,
+                           total_gastos=total_gastos,
+                           efectivo_esperado=efectivo_esperado,
+                           fondo_final_real=fondo_final_real,
+                           diferencia=diferencia,
+                           fecha=fecha_hoy,
+                           inventario=base_de_datos)
 
 @app.route('/eliminar_gasto/<int:id_fila>', methods=['POST'])
 @login_required
 def eliminar_gasto(id_fila):
+    import re
     archivo_gastos = 'gastos.csv'
     if os.path.exists(archivo_gastos):
         with open(archivo_gastos, mode='r', encoding='utf-8') as f:
@@ -1861,7 +1874,46 @@ def eliminar_gasto(id_fila):
                 escritor = csv.writer(f)
                 escritor.writerows(lineas)
 
-            enviar_alerta_telegram(f"❌ Retiro Cancelado\n\nSe eliminó el gasto de: {concepto}\nEl monto de +${monto} ha regresado a la caja.")
+            # 🔄 Si el gasto era una compra de insumo (ej. "📦 Huevo (+1000 g)"), descontamos ese stock del inventario
+            nota_inventario = ""
+            coincidencia = re.match(r'^📦\s+(.+?)\s+\(\+([0-9.]+)\s+([^)]+)\)$', concepto.strip())
+            if coincidencia:
+                nombre_insumo_rev = coincidencia.group(1).strip()
+                try:
+                    cant_rev = float(coincidencia.group(2))
+                except ValueError:
+                    cant_rev = 0.0
+                medida_rev = coincidencia.group(3).strip()
+
+                archivo_inv = 'inventario.csv'
+                if cant_rev > 0 and os.path.exists(archivo_inv):
+                    filas_inv = []
+                    encabezados_inv = ['Producto', 'Precio', 'Contenido', 'Medida', 'Cantidad', 'Presentación', 'Minimo']
+                    se_desconto = False
+                    with open(archivo_inv, mode='r', encoding='utf-8-sig') as f_inv:
+                        lector_inv = csv.DictReader(f_inv)
+                        if lector_inv.fieldnames:
+                            encabezados_inv = [field.strip() for field in lector_inv.fieldnames if field]
+                        for fila_i in lector_inv:
+                            prod_nom = (fila_i.get('Producto') or '').strip()
+                            if prod_nom.lower() == nombre_insumo_rev.lower():
+                                try:
+                                    stock_act = float(fila_i.get('Cantidad') or 0)
+                                except (ValueError, TypeError):
+                                    stock_act = 0.0
+                                fila_i['Cantidad'] = round(max(0.0, stock_act - cant_rev), 2)
+                                se_desconto = True
+                            filas_inv.append(fila_i)
+
+                    if se_desconto:
+                        with open(archivo_inv, mode='w', encoding='utf-8', newline='') as f_inv:
+                            esc_inv = csv.DictWriter(f_inv, fieldnames=encabezados_inv, extrasaction='ignore')
+                            esc_inv.writeheader()
+                            esc_inv.writerows(filas_inv)
+                        cargar_datos_iniciales()
+                        nota_inventario = f"\n📦 Se descontaron -{cant_rev:g} {medida_rev} de '{nombre_insumo_rev}' en el inventario."
+
+            enviar_alerta_telegram(f"❌ Retiro Cancelado\n\nSe eliminó el gasto de: {concepto}\nEl monto de +${monto} ha regresado a la caja.{nota_inventario}")
 
     return redirect(url_for('modulo_caja'))
 
@@ -1899,11 +1951,121 @@ def abrir_turno():
 @app.route('/registrar_gasto', methods=['POST'])
 @login_required
 def registrar_gasto():
-    concepto = request.form.get('concepto', 'Gasto General').strip()
-    try: monto = float(request.form.get('monto', 0))
-    except: monto = 0.0
+    es_compra_insumo = request.form.get('es_compra_insumo') == '1'
+    try:
+        monto = float(request.form.get('monto', 0))
+    except (ValueError, TypeError):
+        monto = 0.0
+
     fecha_hoy = obtener_fecha_hoy()
     archivo_gastos = 'gastos.csv'
+    nota_telegram_inventario = ""
+
+    if es_compra_insumo:
+        insumo_nombre = (request.form.get('insumo_nombre') or '').strip()
+        try:
+            cantidad_comprada = float(request.form.get('cantidad_comprada', 0))
+        except (ValueError, TypeError):
+            cantidad_comprada = 0.0
+
+        medida_nueva = (request.form.get('medida_insumo') or 'g').strip() or 'g'
+        presentacion_nueva = (request.form.get('presentacion_insumo') or '').strip()
+        try:
+            minimo_nuevo = float(request.form.get('minimo_insumo', 5))
+        except (ValueError, TypeError):
+            minimo_nuevo = 5.0
+
+        if insumo_nombre and cantidad_comprada > 0:
+            archivo_inv = 'inventario.csv'
+            encabezados_inv = ['Producto', 'Precio', 'Contenido', 'Medida', 'Cantidad', 'Presentación', 'Minimo']
+            filas_inv = []
+            encontrado = False
+            medida_registrada = medida_nueva
+
+            if os.path.exists(archivo_inv):
+                with open(archivo_inv, mode='r', encoding='utf-8-sig') as f_inv:
+                    lector_inv = csv.DictReader(f_inv)
+                    if lector_inv.fieldnames:
+                        encabezados_inv = [field.strip() for field in lector_inv.fieldnames if field]
+                    if 'Minimo' not in encabezados_inv:
+                        encabezados_inv.append('Minimo')
+
+                    for fila in lector_inv:
+                        prod_csv = (fila.get('Producto') or '').strip()
+                        if prod_csv.lower() == insumo_nombre.lower():
+                            encontrado = True
+                            insumo_nombre = prod_csv # Conservamos el nombre oficial del inventario
+                            medida_registrada = (fila.get('Medida') or medida_nueva).strip()
+
+                            # 1. Sumamos la cantidad comprada al stock actual
+                            try:
+                                stock_actual = float(fila.get('Cantidad') or 0)
+                            except (ValueError, TypeError):
+                                stock_actual = 0.0
+                            nuevo_stock = round(stock_actual + cantidad_comprada, 2)
+                            fila['Cantidad'] = nuevo_stock
+
+                            # 2. Verificamos si cambió el precio proporcionalmente a su Contenido base
+                            try:
+                                contenido_base = float(fila.get('Contenido') or 1)
+                                if contenido_base <= 0:
+                                    contenido_base = cantidad_comprada
+                                    fila['Contenido'] = contenido_base
+                            except (ValueError, TypeError):
+                                contenido_base = cantidad_comprada
+                                fila['Contenido'] = contenido_base
+
+                            precio_ant_str = str(fila.get('Precio') or '0').replace('$', '').replace(',', '').strip()
+                            try:
+                                precio_anterior = float(precio_ant_str)
+                            except (ValueError, TypeError):
+                                precio_anterior = 0.0
+
+                            # Nuevo precio para el contenido base = (monto pagado / cantidad comprada) * contenido_base
+                            nuevo_precio_base = round((monto / cantidad_comprada) * contenido_base, 2)
+                            precio_formateado = f"${int(nuevo_precio_base)}" if nuevo_precio_base.is_integer() else f"${nuevo_precio_base:.2f}"
+                            fila['Precio'] = precio_formateado
+
+                            if abs(nuevo_precio_base - precio_anterior) >= 0.01:
+                                nota_telegram_inventario = (
+                                    f"\n📦 Stock sumado: +{cantidad_comprada:g} {medida_registrada} (Total: {nuevo_stock:g} {medida_registrada})"
+                                    f"\n🏷️ Precio actualizado: de ${precio_anterior:g} a {precio_formateado} (por cada {contenido_base:g} {medida_registrada}) en Inventario y Recetario."
+                                )
+                            else:
+                                nota_telegram_inventario = f"\n📦 Stock sumado al inventario: +{cantidad_comprada:g} {medida_registrada} (Total: {nuevo_stock:g} {medida_registrada})"
+
+                        filas_inv.append(fila)
+
+            if not encontrado:
+                # Es un insumo nuevo: lo damos de alta automáticamente en inventario.csv
+                precio_formateado = f"${int(monto)}" if monto.is_integer() else f"${monto:.2f}"
+                if not presentacion_nueva:
+                    presentacion_nueva = f"{cantidad_comprada:g} {medida_registrada}"
+                filas_inv.append({
+                    'Producto': insumo_nombre,
+                    'Precio': precio_formateado,
+                    'Contenido': cantidad_comprada,
+                    'Medida': medida_registrada,
+                    'Cantidad': cantidad_comprada,
+                    'Presentación': presentacion_nueva,
+                    'Minimo': minimo_nuevo
+                })
+                nota_telegram_inventario = (
+                    f"\n🆕 Nuevo insumo creado en Inventario: {insumo_nombre}"
+                    f"\n📦 Stock inicial: {cantidad_comprada:g} {medida_registrada} | Costo base: {precio_formateado}"
+                )
+
+            with open(archivo_inv, mode='w', encoding='utf-8', newline='') as f_inv:
+                esc_inv = csv.DictWriter(f_inv, fieldnames=encabezados_inv, extrasaction='ignore')
+                esc_inv.writeheader()
+                esc_inv.writerows(filas_inv)
+
+            cargar_datos_iniciales()
+            concepto = f"📦 {insumo_nombre} (+{cantidad_comprada:g} {medida_registrada})"
+        else:
+            concepto = request.form.get('concepto', 'Gasto General').strip() or 'Compra de Insumo'
+    else:
+        concepto = request.form.get('concepto', 'Gasto General').strip() or 'Gasto General'
 
     encabezados = ['Fecha', 'Concepto', 'Monto']
     if not os.path.exists(archivo_gastos):
@@ -1915,7 +2077,7 @@ def registrar_gasto():
         escritor = csv.DictWriter(f, fieldnames=encabezados)
         escritor.writerow({'Fecha': fecha_hoy, 'Concepto': concepto, 'Monto': monto})
 
-    enviar_alerta_telegram(f"💸 Retiro de Caja (Gasto)\n\nConcepto: {concepto}\nMonto: -${int(monto)}")
+    enviar_alerta_telegram(f"💸 Retiro de Caja (Gasto)\n\nConcepto: {concepto}\nMonto: -${int(monto)}{nota_telegram_inventario}")
     return redirect(url_for('modulo_caja'))
 
 @app.route('/cerrar_turno', methods=['POST'])

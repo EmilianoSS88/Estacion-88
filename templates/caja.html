@@ -83,14 +83,75 @@
                     </div>
                 </div>
 
-                <!-- MÓDULO DE GASTOS CON REDUCCIÓN AUTOMÁTICA -->
+                <!-- MÓDULO DE GASTOS CON REDUCCIÓN AUTOMÁTICA Y COMPRA DE INSUMOS -->
                 <div class="bg-red-50/60 p-6 rounded-2xl border border-red-200 flex flex-col justify-between">
                     <div>
                         <h3 class="text-sm font-bold text-red-800 uppercase tracking-wider mb-2">💸 Registrar Retiro / Gasto</h3>
-                        <form action="/registrar_gasto" method="POST" class="space-y-2">
-                            <input type="text" name="concepto" placeholder="Concepto (Ej. Hielo, Servilletas)" required class="w-full p-2 text-xs border border-red-200 rounded-lg bg-white outline-none">
-                            <input type="number" name="monto" placeholder="Monto ($)" min="1" step="any" required class="w-full p-2 text-xs border border-red-200 rounded-lg bg-white font-bold text-red-600 outline-none">
-                            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs transition-colors shadow-sm">
+                        <form action="/registrar_gasto" method="POST" class="space-y-2.5">
+                            <!-- Selector de tipo de gasto -->
+                            <label class="flex items-center gap-2 bg-white/90 p-2 rounded-lg border border-red-200 cursor-pointer select-none shadow-sm hover:bg-white transition-colors">
+                                <input type="checkbox" id="check-compra-insumo" name="es_compra_insumo" value="1" onchange="alternarModoInsumo(this.checked)" class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500">
+                                <span class="text-xs font-extrabold text-slate-700">📦 ¿Sumar compra al Inventario?</span>
+                            </label>
+
+                            <!-- MODO 1: Gasto Normal de Caja -->
+                            <div id="bloque-gasto-normal">
+                                <input type="text" id="input-concepto-normal" name="concepto" placeholder="Concepto (Ej. Hielo, Servilletas, Taxi)" required class="w-full p-2 text-xs border border-red-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-red-400">
+                            </div>
+
+                            <!-- MODO 2: Compra de Insumo para Inventario -->
+                            <div id="bloque-compra-insumo" class="hidden space-y-2 bg-white p-3 rounded-xl border border-orange-200 shadow-sm">
+                                <div class="bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1.5 rounded-lg text-[11px] font-bold leading-tight">
+                                    💡 Recuerda: <strong>1 Kg = 1000 g</strong> | <strong>1 L = 1000 ml</strong> (Usa g, ml o Pz)
+                                </div>
+
+                                <div>
+                                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-0.5">Ingrediente / Insumo:</label>
+                                    <input list="lista-insumos-caja" type="text" id="input-insumo-caja" name="insumo_nombre" placeholder="Buscar o escribir nuevo (Ej. Huevo)..." autocomplete="off" oninput="detectarInsumoExistente()" class="w-full p-2 text-xs border border-gray-300 rounded-lg bg-slate-50 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-orange-500">
+                                    <datalist id="lista-insumos-caja">
+                                        {% for item in inventario %}
+                                            <option value="{{ item['Producto'] }}">{{ item['Producto'] }} ({{ item['Medida'] }})</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
+
+                                <!-- Aviso dinámico si ya existe o si es nuevo -->
+                                <div id="estado-insumo-caja" class="hidden text-[11px] font-bold px-2.5 py-1.5 rounded-lg"></div>
+
+                                <div class="flex gap-2 items-end">
+                                    <div class="flex-1">
+                                        <label class="block text-[10px] font-black text-slate-500 uppercase mb-0.5">Cantidad comprada:</label>
+                                        <input type="number" id="input-cantidad-comprada" name="cantidad_comprada" placeholder="Ej. 1000" min="0.01" step="any" class="w-full p-2 text-xs border border-gray-300 rounded-lg bg-white font-bold text-orange-600 outline-none focus:ring-2 focus:ring-orange-500">
+                                    </div>
+                                    <div id="etiqueta-medida-existente" class="hidden pb-2 px-2 text-xs font-black text-slate-600">
+                                        g
+                                    </div>
+                                </div>
+
+                                <!-- Campos extra solo cuando es un Producto Nuevo que no existe en inventario -->
+                                <div id="campos-insumo-nuevo" class="hidden pt-1 border-t border-slate-100 space-y-2">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-0.5">Unidad:</label>
+                                            <select name="medida_insumo" id="select-medida-insumo" class="w-full p-1.5 text-xs border border-gray-300 rounded-lg bg-white font-bold text-slate-700 outline-none">
+                                                <option value="g">g (Gramos)</option>
+                                                <option value="ml">ml (Mililitros)</option>
+                                                <option value="Pz">Pz (Piezas)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-0.5">Alerta Mínimo:</label>
+                                            <input type="number" name="minimo_insumo" value="5" step="any" class="w-full p-1.5 text-xs border border-gray-300 rounded-lg bg-white font-bold text-red-600 text-center outline-none">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <input type="text" name="presentacion_insumo" placeholder="Presentación opcional (Ej. Cono 30 pz, Bolsa 1000 g)" class="w-full p-1.5 text-xs border border-gray-300 rounded-lg bg-white text-slate-700 outline-none">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <input type="number" name="monto" placeholder="Lo que costó en total ($)" min="1" step="any" required class="w-full p-2 text-xs border border-red-200 rounded-lg bg-white font-bold text-red-600 outline-none focus:ring-2 focus:ring-red-400">
+                            <button type="submit" id="btn-submit-gasto" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs transition-colors shadow-sm">
                                 Registrar y Restar del Balance
                             </button>
                         </form>
@@ -179,6 +240,80 @@
             </div>
         {% endif %}
 
+    <div id="datos-inventario-caja" data-inventario='{{ (inventario or []) | tojson }}' class="hidden"></div>
+
     </div>
+
+    <script>
+        const contenedorInvCaja = document.getElementById('datos-inventario-caja');
+        const listaInventarioCaja = contenedorInvCaja ? JSON.parse(contenedorInvCaja.dataset.inventario || '[]') : [];
+        const mapaInventarioCaja = {};
+
+        listaInventarioCaja.forEach(item => {
+            if (item.Producto) {
+                mapaInventarioCaja[item.Producto.trim().toLowerCase()] = item;
+            }
+        });
+
+        function alternarModoInsumo(activo) {
+            const bloqueNormal = document.getElementById('bloque-gasto-normal');
+            const inputNormal = document.getElementById('input-concepto-normal');
+            const bloqueInsumo = document.getElementById('bloque-compra-insumo');
+            const inputInsumo = document.getElementById('input-insumo-caja');
+            const inputCant = document.getElementById('input-cantidad-comprada');
+            const btnSubmit = document.getElementById('btn-submit-gasto');
+
+            if (activo) {
+                bloqueNormal.classList.add('hidden');
+                inputNormal.required = false;
+                bloqueInsumo.classList.remove('hidden');
+                inputInsumo.required = true;
+                inputCant.required = true;
+                btnSubmit.textContent = '📦 Guardar Gasto y Actualizar Inventario';
+                detectarInsumoExistente();
+            } else {
+                bloqueNormal.classList.remove('hidden');
+                inputNormal.required = true;
+                bloqueInsumo.classList.add('hidden');
+                inputInsumo.required = false;
+                inputCant.required = false;
+                btnSubmit.textContent = 'Registrar y Restar del Balance';
+            }
+        }
+
+        function detectarInsumoExistente() {
+            const inputInsumo = document.getElementById('input-insumo-caja');
+            const estadoDiv = document.getElementById('estado-insumo-caja');
+            const camposNuevo = document.getElementById('campos-insumo-nuevo');
+            const etiquetaMedida = document.getElementById('etiqueta-medida-existente');
+
+            if (!inputInsumo) return;
+            const texto = inputInsumo.value.trim().toLowerCase();
+
+            if (!texto) {
+                estadoDiv.classList.add('hidden');
+                camposNuevo.classList.add('hidden');
+                etiquetaMedida.classList.add('hidden');
+                return;
+            }
+
+            if (mapaInventarioCaja.hasOwnProperty(texto)) {
+                const prod = mapaInventarioCaja[texto];
+                const medida = prod.Medida || 'g';
+                estadoDiv.className = 'text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200';
+                estadoDiv.textContent = `✅ En inventario: Stock actual ${prod.Cantidad} ${medida} (Costo reg: ${prod.Precio} por ${prod.Contenido} ${medida})`;
+                estadoDiv.classList.remove('hidden');
+                camposNuevo.classList.add('hidden');
+                etiquetaMedida.textContent = medida;
+                etiquetaMedida.classList.remove('hidden');
+            } else {
+                estadoDiv.className = 'text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-sky-50 text-sky-800 border border-sky-200';
+                estadoDiv.textContent = '🆕 Producto nuevo: se agregará automáticamente al Inventario.';
+                estadoDiv.classList.remove('hidden');
+                camposNuevo.classList.remove('hidden');
+                etiquetaMedida.classList.add('hidden');
+            }
+        }
+    </script>
 </body>
 </html>
