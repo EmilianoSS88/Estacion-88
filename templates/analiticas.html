@@ -7,195 +7,483 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-slate-50 p-8 font-sans min-h-screen flex items-start justify-center">
+<body class="bg-slate-50 p-6 md:p-8 font-sans min-h-screen flex items-start justify-center">
 
-    <div class="max-w-6xl w-full mx-auto flex flex-col gap-8">
+    <div class="max-w-7xl w-full mx-auto flex flex-col gap-8">
 
-        <div class="bg-white p-8 rounded-xl shadow-lg border border-slate-200 flex justify-between items-center">
+        <!-- CABECERA -->
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 class="text-3xl font-extrabold text-indigo-600 tracking-tight">Centro Inteligente y Finanzas</h1>
-                <p class="text-slate-500">Métricas globales, capital de bodega y proyecciones automáticas.</p>
+                <h1 class="text-3xl font-extrabold text-indigo-600 tracking-tight">📈 Centro Inteligente y Finanzas</h1>
+                <p class="text-slate-500 text-sm mt-1">Flujo de dinero real (ventas menos gastos), rentabilidad del menú y lista inteligente del súper.</p>
             </div>
-            <a href="/" class="text-slate-500 hover:text-slate-800 font-bold bg-slate-100 hover:bg-slate-200 py-2 px-6 rounded-lg transition-colors">
-                ⬅ Volver
+            <a href="/" class="text-slate-600 hover:text-slate-900 font-bold bg-slate-100 hover:bg-slate-200 py-2.5 px-6 rounded-xl transition-colors text-sm">
+                ⬅ Volver al Panel
             </a>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col items-center">
-                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">Capital en Almacén</span>
-                <span class="text-4xl font-black text-slate-800 mt-2">{{ valor_inventario }}</span>
-                <span class="text-xs text-emerald-600 font-medium mt-1">● Dinero activo en insumos</span>
+        <!-- 1. TARJETAS DE CAPITAL Y BODEGA (4 KPIs) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-500 flex flex-col justify-between">
+                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">📦 Capital en Almacén</span>
+                <span class="text-3xl font-black text-slate-800 my-2">{{ valor_inventario }}</span>
+                <span class="text-xs text-emerald-600 font-bold">● Dinero actual en insumos</span>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col justify-between relative overflow-hidden shadow-sm">
-                <div class="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm font-bold text-slate-500 uppercase tracking-wider">Capital de Reinversión</p>
-                        <h3 class="text-3xl font-black text-red-600 mt-2">{{ dinero_reinversion }}</h3>
-                    </div>
-                    <div class="bg-red-100 p-2 rounded-lg text-red-600 font-bold text-xl">
-                        💸
-                    </div>
-                </div>
-                <p class="text-xs text-slate-400 mt-3 font-medium">Dinero necesario para recuperar los stocks mínimos.</p>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-red-500 flex flex-col justify-between">
+                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">🛒 Inversión para el Súper</span>
+                <span class="text-3xl font-black text-red-600 my-2">{{ dinero_reinversion }}</span>
+                <span class="text-xs text-slate-500 font-medium">Para recuperar todos los mínimos</span>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col items-center">
-                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">Alertas de Stock</span>
-                <span class="text-4xl font-black {% if alertas_stock %}text-red-500{% else %}text-emerald-500{% endif %} mt-2">
-                    {{ alertas_stock|length }}
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-amber-500 flex flex-col justify-between">
+                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">⏳ Cuentas por Cobrar</span>
+                <span class="text-3xl font-black text-amber-600 my-2">{{ total_credito_str }}</span>
+                <a href="/historial" class="text-xs text-amber-700 hover:underline font-bold">Ver deudas pendientes ➔</a>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-indigo-500 flex flex-col justify-between">
+                <span class="text-slate-400 font-bold text-xs uppercase tracking-wider">⚠️ Alertas de Stock</span>
+                <span class="text-3xl font-black {% if alertas_stock %}text-red-500{% else %}text-emerald-500{% endif %} my-2">
+                    {{ alertas_stock|length }} insumos
                 </span>
-                <span class="text-xs text-slate-500 font-medium mt-1">Productos por agotarse</span>
+                <a href="#seccion-super" class="text-xs text-indigo-600 hover:underline font-bold">Ver lista de compras abajo ⬇</a>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- 2. REPORTE FINANCIERO REAL (VENTAS - GASTOS = GANANCIA LIBRE) -->
+        <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 border-b pb-3 gap-2">
+                <div>
+                    <h2 class="text-xl font-black text-slate-800">💰 Balance Financiero Real (Ventas menos Gastos)</h2>
+                    <p class="text-xs text-slate-400">Calcula cuánto entró en ventas, cuánto salió en compras/gastos de caja y cuánto queda libre.</p>
+                </div>
+            </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col">
-                <h2 class="text-slate-700 font-bold text-sm uppercase mb-4">Platillos Más Vendidos (Top 5)</h2>
-                <div class="w-full h-64 flex justify-center items-center">
-                    {% if cantidades_platillos %}
-                        <canvas id="graficaVentas"></canvas>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- HOY -->
+                <div class="bg-emerald-50/70 border border-emerald-200 p-5 rounded-2xl flex flex-col justify-between relative overflow-hidden shadow-sm">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
+                    <div class="text-center mb-3">
+                        <span class="text-emerald-800 font-extrabold text-xs uppercase tracking-wider">Balance Libre de Hoy</span>
+                        <div class="text-4xl font-black mt-1 {% if utilidad_hoy_num < 0 %}text-red-600{% else %}text-emerald-800{% endif %}">
+                            {{ utilidad_hoy_str }}
+                        </div>
+                    </div>
+                    <div class="bg-white/90 p-3 rounded-xl border border-emerald-100 text-xs space-y-1.5">
+                        <div class="flex justify-between font-bold text-slate-600">
+                            <span>🟢 Ventas de Hoy:</span>
+                            <span class="text-emerald-600">+{{ hoy_str }}</span>
+                        </div>
+                        <div class="flex justify-between font-bold text-slate-600">
+                            <span>🔴 Gastos / Insumos:</span>
+                            <span class="text-red-500">-{{ gastos_hoy_str }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ESTA SEMANA -->
+                <div class="bg-blue-50/70 border border-blue-200 p-5 rounded-2xl flex flex-col justify-between relative overflow-hidden shadow-sm">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-blue-500"></div>
+                    <div class="text-center mb-3">
+                        <span class="text-blue-800 font-extrabold text-xs uppercase tracking-wider">Balance Libre Esta Semana</span>
+                        <div class="text-4xl font-black mt-1 {% if utilidad_semana_num < 0 %}text-red-600{% else %}text-blue-800{% endif %}">
+                            {{ utilidad_semana_str }}
+                        </div>
+                    </div>
+                    <div class="bg-white/90 p-3 rounded-xl border border-blue-100 text-xs space-y-1.5">
+                        <div class="flex justify-between font-bold text-slate-600">
+                            <span>🟢 Ventas Semana:</span>
+                            <span class="text-emerald-600">+{{ semana_str }}</span>
+                        </div>
+                        <div class="flex justify-between font-bold text-slate-600">
+                            <span>🔴 Gastos Semana:</span>
+                            <span class="text-red-500">-{{ gastos_semana_str }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ESTE MES -->
+                <div class="bg-indigo-50/70 border border-indigo-200 p-5 rounded-2xl flex flex-col justify-between relative overflow-hidden shadow-sm">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-indigo-500"></div>
+                    <div class="text-center mb-3">
+                        <span class="text-indigo-800 font-extrabold text-xs uppercase tracking-wider">Balance Libre Este Mes</span>
+                        <div class="text-4xl font-black mt-1 {% if utilidad_mes_num < 0 %}text-red-600{% else %}text-indigo-800{% endif %}">
+                            {{ utilidad_mes_str }}
+                        </div>
+                    </div>
+                    <div class="bg-white/90 p-3 rounded-xl border border-indigo-100 text-xs space-y-1.5">
+                        <div class="flex justify-between font-bold text-slate-600">
+                            <span>🟢 Ventas del Mes:</span>
+                            <span class="text-emerald-600">+{{ mes_str }}</span>
+                        </div>
+                        <div class="flex justify-between font-bold text-slate-600">
+                            <span>🔴 Gastos del Mes:</span>
+                            <span class="text-red-500">-{{ gastos_mes_str }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. GRÁFICA DE FLUJO DE LOS ÚLTIMOS 7 DÍAS + DONA DE MÉTODOS DE PAGO -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 lg:col-span-2 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-slate-800 font-black text-base">📊 Ventas vs. Gastos Diarios (Últimos 7 Días)</h2>
+                        <p class="text-xs text-slate-400">Compara cuánto entró y cuánto se gastó cada día de la semana.</p>
+                    </div>
+                </div>
+                <div class="w-full h-72">
+                    <canvas id="graficaFlujo7Dias"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-slate-800 font-black text-base">🍩 ¿Cómo pagan tus clientes? (Mes)</h2>
+                    <p class="text-xs text-slate-400 mb-4">Proporción por método de pago en el mes actual.</p>
+                </div>
+                <div class="w-full h-56 flex items-center justify-center">
+                    <canvas id="graficaMetodosPago"></canvas>
+                </div>
+                <div class="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-600">
+                    <div>💵 Efectivo: <span class="text-emerald-600">${{ "{:,.0f}".format(metodos_dona[0]) }}</span></div>
+                    <div>💳 Tarjeta: <span class="text-blue-600">${{ "{:,.0f}".format(metodos_dona[1]) }}</span></div>
+                    <div>📱 Transfer: <span class="text-purple-600">${{ "{:,.0f}".format(metodos_dona[2]) }}</span></div>
+                    <div>⏳ Crédito: <span class="text-amber-600">${{ "{:,.0f}".format(metodos_dona[3]) }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. TOP PLATILLOS (UNIDADES VS DINERO $) + TOP CLIENTES Y PLANIFICADOR -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- TOP 5 PLATILLOS CON SELECTOR INTERACTIVO -->
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                        <div>
+                            <h2 class="text-slate-800 font-black text-base">🏆 Top 5 Platillos Estrella</h2>
+                            <p class="text-xs text-slate-400">Alterna entre los que más se piden y los que más dinero dejan.</p>
+                        </div>
+                        <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+                            <button type="button" id="btn-top-unidades" onclick="cambiarModoTopPlatillos('unidades')" class="px-3 py-1.5 rounded-lg bg-amber-500 text-white shadow-sm transition-all">
+                                🍽️ Por Unidades
+                            </button>
+                            <button type="button" id="btn-top-dinero" onclick="cambiarModoTopPlatillos('dinero')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all">
+                                💲 Por Dinero ($)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="w-full h-64 flex justify-center items-center">
+                        {% if cantidades_platillos %}
+                            <canvas id="graficaVentas"></canvas>
+                        {% else %}
+                            <p class="text-slate-400 text-sm italic">Aún no hay ventas registradas.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOP 5 CLIENTES + PLANIFICADOR SEMANAL -->
+            <div class="flex flex-col gap-6">
+                <!-- TOP 5 MEJORES CLIENTES -->
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <h2 class="text-slate-800 font-black text-base">👑 Top 5 Clientes Frecuentes</h2>
+                            <p class="text-xs text-slate-400">Clientes con mayor consumo registrado y su monedero actual.</p>
+                        </div>
+                        <a href="/suscripciones" class="text-xs font-bold text-indigo-600 hover:underline">Ver todos ➔</a>
+                    </div>
+
+                    {% if top_clientes %}
+                    <div class="divide-y divide-slate-100">
+                        {% for cli in top_clientes %}
+                        <div class="py-2.5 flex justify-between items-center text-sm">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center">{{ loop.index }}</span>
+                                <div>
+                                    <span class="font-bold text-slate-800 block leading-tight">{{ cli.Nombre }}</span>
+                                    <span class="text-[11px] text-slate-400 font-semibold">{{ cli.Plan }}</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-black text-emerald-600 block">{{ cli.Total_Str }}</span>
+                                <span class="text-[11px] text-amber-600 font-bold">🌟 Puntos: ${{ cli.Puntos }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% else %}
-                        <p class="text-slate-400 text-sm italic">Aún no hay ventas registradas.</p>
+                    <p class="text-slate-400 text-xs italic py-4 text-center">Aún no hay ventas asignadas a clientes registrados.</p>
                     {% endif %}
                 </div>
-            </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col">
-                <h2 class="text-slate-700 font-bold text-sm uppercase mb-2">Planificador de Producción Semanal</h2>
-                <p class="text-xs text-gray-500 mb-4">Cálculo exacto de porciones requeridas para cumplir con los suscriptores activos:</p>
-
-                <div class="flex flex-col gap-4">
-                    <div class="flex justify-between items-center bg-orange-50 p-4 rounded-xl border border-orange-100">
-                        <div>
-                            <span class="block font-bold text-orange-800 text-lg">☕ Desayunos Proyectados</span>
-                            <span class="text-xs text-orange-600">Servicios totales de lunes a viernes</span>
+                <!-- PLANIFICADOR DE PRODUCCIÓN SEMANAL -->
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-slate-800 font-black text-sm uppercase mb-3">📅 Producción Semanal para Planes Activos</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-orange-50 p-3.5 rounded-xl border border-orange-100 flex justify-between items-center">
+                            <div>
+                                <span class="block font-bold text-orange-800 text-sm">☕ Desayunos</span>
+                                <span class="text-[11px] text-orange-600">Lun a Vie</span>
+                            </div>
+                            <span class="text-2xl font-black text-orange-700">{{ desayunos_proyectados }}</span>
                         </div>
-                        <span class="text-3xl font-black text-orange-700">{{ desayunos_proyectados }}</span>
-                    </div>
 
-                    <div class="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
-                        <div>
-                            <span class="block font-bold text-blue-800 text-lg">🥗 Comidas Proyectadas</span>
-                            <span class="text-xs text-blue-600">Servicios totales de lunes a viernes</span>
+                        <div class="bg-blue-50 p-3.5 rounded-xl border border-blue-100 flex justify-between items-center">
+                            <div>
+                                <span class="block font-bold text-blue-800 text-sm">🥗 Comidas</span>
+                                <span class="text-[11px] text-blue-600">Lun a Vie</span>
+                            </div>
+                            <span class="text-2xl font-black text-blue-700">{{ comidas_proyectadas }}</span>
                         </div>
-                        <span class="text-3xl font-black text-blue-700">{{ comidas_proyectadas }}</span>
                     </div>
                 </div>
-
-                <div class="mt-6 bg-slate-50 p-4 rounded-xl border border-slate-200 flex-1">
-                    <span class="block text-xs font-bold text-slate-500 uppercase mb-2">💡 Recomendación para Cero Merma</span>
-                    <p class="text-sm text-slate-600 leading-relaxed">
-                        Con base en estos números, tus recetas descontarán automáticamente los insumos fijos. Revisa la lista de alertas a la izquierda para garantizar que cuentas con la materia prima base antes de iniciar la jornada.
-                    </p>
-                </div>
             </div>
+
         </div>
 
-        <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 mb-8 mt-8">
-            <h2 class="text-2xl font-black text-slate-800 mb-6 border-b pb-3">📊 Reporte Financiero</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                <div class="bg-emerald-50 border border-emerald-200 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
-                    <span class="text-emerald-700 font-bold text-sm uppercase tracking-wider mb-2">Caja de Hoy</span>
-                    <span class="text-4xl font-black text-emerald-800">{{ hoy_str }}</span>
+        <!-- 5. LISTA DEL SÚPER INTELIGENTE (CON CANTIDAD A COMPRAR Y COSTO ESTIMADO) -->
+        <div id="seccion-super" class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+            <div class="bg-red-50 border-b border-red-100 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="text-lg font-black text-red-700">🛒 Lista Inteligente del Súper (Insumos por debajo del mínimo)</h2>
+                    <p class="text-xs text-red-600/80 font-medium">Te dice exactamente cuánto te falta comprar de cada insumo y cuánto dinero aproximado necesitas.</p>
                 </div>
-
-                <div class="bg-blue-50 border border-blue-200 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
-                    <span class="text-blue-700 font-bold text-sm uppercase tracking-wider mb-2">Esta Semana</span>
-                    <span class="text-4xl font-black text-blue-800">{{ semana_str }}</span>
-                </div>
-
-                <div class="bg-indigo-50 border border-indigo-200 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
-                    <span class="text-indigo-700 font-bold text-sm uppercase tracking-wider mb-2">Este Mes</span>
-                    <span class="text-4xl font-black text-indigo-800">{{ mes_str }}</span>
-                </div>
-
-            </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-            <div class="bg-red-50 border-b border-red-100 p-4">
-                <h2 class="text-lg font-bold text-red-700">Lista Completa de Reabastecimiento Urgente (5 unidades o menos)</h2>
-            </div>
-            <div class="p-4">
                 {% if alertas_stock %}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <button type="button" onclick="copiarListaSuper()" id="btn-copiar-super" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all flex items-center gap-1.5 whitespace-nowrap">
+                    📋 Copiar Lista para WhatsApp
+                </button>
+                {% endif %}
+            </div>
+
+            <div class="p-5">
+                {% if alertas_stock %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {% for item in alertas_stock %}
-                            <div class="bg-red-50/50 border border-red-200 p-3 rounded-lg flex justify-between items-center">
-                                <div>
-                                    <span class="block font-bold text-slate-800 text-sm">{{ item['Producto'] }}</span>
-                                    <span class="text-xs text-slate-500">Unidad de medida: {{ item['Medida'] }}</span>
+                            <div class="item-super bg-white border border-red-200 p-4 rounded-xl shadow-sm flex flex-col justify-between gap-2"
+                                 data-texto="• {{ item['Producto'] }}: Comprar {{ item['Faltante'] }} {{ item['Medida'] }} (Aprox {{ item['Costo_Estimado_Str'] }})">
+                                <div class="flex justify-between items-start gap-2">
+                                    <div>
+                                        <span class="block font-extrabold text-slate-800 text-sm">{{ item['Producto'] }}</span>
+                                        <span class="text-[11px] text-slate-500 font-semibold">
+                                            Tienes: <strong class="text-red-600">{{ item['Cantidad'] }} {{ item['Medida'] }}</strong> / Mínimo: {{ item['Minimo'] }} {{ item['Medida'] }}
+                                        </span>
+                                    </div>
+                                    <span class="bg-red-100 text-red-700 text-xs font-black px-2.5 py-1 rounded-lg whitespace-nowrap">
+                                        {{ item['Costo_Estimado_Str'] }}
+                                    </span>
                                 </div>
-                                <span class="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-md">
-                                    {{ item['Cantidad'] }} disp.
-                                </span>
+
+                                <div class="mt-1 pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+                                    <span class="font-bold text-slate-600">🛒 Comprar:</span>
+                                    <span class="font-black text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-md border border-orange-200">
+                                        +{{ item['Faltante'] }} {{ item['Medida'] }}
+                                    </span>
+                                </div>
                             </div>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-slate-500 text-sm text-center py-4">No hay productos con existencias bajas. ¡Tu bodega está perfectamente surtida! 👍</p>
+                    <p class="text-slate-500 text-sm text-center py-6">✅ No hay productos con existencias bajas. ¡Tu bodega está perfectamente surtida!</p>
                 {% endif %}
             </div>
         </div>
 
+        <!-- CONTENEDOR OCULTO DE DATOS PARA JAVASCRIPT (SIN ERRORES DE LINTER) -->
         <div id="datosGrafica"
-             data-nombres='{{ nombres_platillos | tojson }}'
-             data-cantidades='{{ cantidades_platillos | tojson }}'
-             style="display: none;"></div>
+             data-nombres='{{ (nombres_platillos or []) | tojson }}'
+             data-cantidades='{{ (cantidades_platillos or []) | tojson }}'
+             data-nombres-dinero='{{ (nombres_platillos_dinero or []) | tojson }}'
+             data-montos-dinero='{{ (montos_platillos_dinero or []) | tojson }}'
+             data-dias-labels='{{ (dias_7_labels or []) | tojson }}'
+             data-dias-ventas='{{ (dias_7_ventas or []) | tojson }}'
+             data-dias-gastos='{{ (dias_7_gastos or []) | tojson }}'
+             data-dias-utilidad='{{ (dias_7_utilidad or []) | tojson }}'
+             data-metodos-dona='{{ (metodos_dona or [0, 0, 0, 0]) | tojson }}'
+             data-reinversion='{{ dinero_reinversion }}'
+             class="hidden"></div>
 
     </div>
 
     <script>
-        // Le pusimos un seguro al código para que cargue la gráfica solo cuando la página esté lista
+        let chartTopPlatillos = null;
+        let datosTopUnidades = { labels: [], data: [] };
+        let datosTopDinero = { labels: [], data: [] };
+
         document.addEventListener('DOMContentLoaded', function() {
-            const datosContenedor = document.getElementById('datosGrafica');
+            const contenedor = document.getElementById('datosGrafica');
+            if (!contenedor) return;
 
-            if (datosContenedor && datosContenedor.dataset.nombres && datosContenedor.dataset.cantidades) {
-                try {
-                    const nombresInsumos = JSON.parse(datosContenedor.dataset.nombres);
-                    const cantidadesInsumos = JSON.parse(datosContenedor.dataset.cantidades);
+            try {
+                datosTopUnidades.labels = JSON.parse(contenedor.dataset.nombres || '[]');
+                datosTopUnidades.data = JSON.parse(contenedor.dataset.cantidades || '[]');
+                datosTopDinero.labels = JSON.parse(contenedor.dataset.nombresDinero || '[]');
+                datosTopDinero.data = JSON.parse(contenedor.dataset.montosDinero || '[]');
 
-                    if (nombresInsumos.length > 0) {
-                        const canvas = document.getElementById('graficaVentas');
-                        if (canvas) {
-                            const ctx = canvas.getContext('2d');
-                            new Chart(ctx, {
-                                type: 'bar',
-                                data: {
-                                    labels: nombresInsumos,
-                                    datasets: [{
-                                        label: 'Veces Vendido',
-                                        data: cantidadesInsumos,
-                                        backgroundColor: '#F59E0B',
-                                        borderRadius: 6,
-                                        borderWidth: 0
-                                    }]
+                const diasLabels = JSON.parse(contenedor.dataset.diasLabels || '[]');
+                const diasVentas = JSON.parse(contenedor.dataset.diasVentas || '[]');
+                const diasGastos = JSON.parse(contenedor.dataset.diasGastos || '[]');
+                const diasUtilidad = JSON.parse(contenedor.dataset.diasUtilidad || '[]');
+                const metodosDona = JSON.parse(contenedor.dataset.metodosDona || '[0,0,0,0]');
+
+                // 1. Gráfica de los últimos 7 días (Ventas vs Gastos vs Utilidad)
+                const canvasFlujo = document.getElementById('graficaFlujo7Dias');
+                if (canvasFlujo) {
+                    new Chart(canvasFlujo.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: diasLabels,
+                            datasets: [
+                                {
+                                    type: 'line',
+                                    label: 'Ganancia Libre ($)',
+                                    data: diasUtilidad,
+                                    borderColor: '#4F46E5',
+                                    backgroundColor: '#4F46E5',
+                                    borderWidth: 2.5,
+                                    tension: 0.3,
+                                    pointRadius: 4
                                 },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        legend: { display: false }
-                                    },
-                                    scales: {
-                                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-                                    }
+                                {
+                                    type: 'bar',
+                                    label: 'Ventas ($)',
+                                    data: diasVentas,
+                                    backgroundColor: '#10B981',
+                                    borderRadius: 6
+                                },
+                                {
+                                    type: 'bar',
+                                    label: 'Gastos / Compras ($)',
+                                    data: diasGastos,
+                                    backgroundColor: '#EF4444',
+                                    borderRadius: 6
                                 }
-                            });
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
                         }
-                    }
-                } catch (e) {
-                    console.error("Error al cargar la gráfica:", e);
+                    });
                 }
+
+                // 2. Gráfica de Dona: Métodos de Pago
+                const canvasDona = document.getElementById('graficaMetodosPago');
+                if (canvasDona) {
+                    const sumaMetodos = metodosDona.reduce((a, b) => a + b, 0);
+                    new Chart(canvasDona.getContext('2d'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Efectivo', 'Tarjeta', 'Transferencia', 'Crédito'],
+                            datasets: [{
+                                data: sumaMetodos > 0 ? metodosDona : [1, 0, 0, 0],
+                                backgroundColor: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B'],
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '65%',
+                            plugins: {
+                                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                            }
+                        }
+                    });
+                }
+
+                // 3. Gráfica Top 5 Platillos
+                const canvasTop = document.getElementById('graficaVentas');
+                if (canvasTop && datosTopUnidades.labels.length > 0) {
+                    chartTopPlatillos = new Chart(canvasTop.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: datosTopUnidades.labels,
+                            datasets: [{
+                                label: 'Veces Vendido',
+                                data: datosTopUnidades.data,
+                                backgroundColor: '#F59E0B',
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                x: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Error al inicializar gráficas:", e);
             }
         });
+
+        function cambiarModoTopPlatillos(modo) {
+            if (!chartTopPlatillos) return;
+            const btnUnidades = document.getElementById('btn-top-unidades');
+            const btnDinero = document.getElementById('btn-top-dinero');
+
+            if (modo === 'dinero') {
+                chartTopPlatillos.data.labels = datosTopDinero.labels;
+                chartTopPlatillos.data.datasets[0].data = datosTopDinero.data;
+                chartTopPlatillos.data.datasets[0].label = 'Ingresos Generados ($)';
+                chartTopPlatillos.data.datasets[0].backgroundColor = '#10B981';
+
+                btnDinero.className = 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white shadow-sm transition-all';
+                btnUnidades.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all';
+            } else {
+                chartTopPlatillos.data.labels = datosTopUnidades.labels;
+                chartTopPlatillos.data.datasets[0].data = datosTopUnidades.data;
+                chartTopPlatillos.data.datasets[0].label = 'Veces Vendido';
+                chartTopPlatillos.data.datasets[0].backgroundColor = '#F59E0B';
+
+                btnUnidades.className = 'px-3 py-1.5 rounded-lg bg-amber-500 text-white shadow-sm transition-all';
+                btnDinero.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all';
+            }
+            chartTopPlatillos.update();
+        }
+
+        function copiarListaSuper() {
+            const items = document.querySelectorAll('.item-super');
+            const contenedor = document.getElementById('datosGrafica');
+            const totalReinversion = contenedor ? (contenedor.dataset.reinversion || '$0.00') : '$0.00';
+
+            let lineas = ['🛒 *Lista del Súper - Estación 88*', ''];
+            items.forEach(el => {
+                if (el.dataset.texto) {
+                    lineas.push(el.dataset.texto);
+                }
+            });
+            lineas.push('');
+            lineas.push(`💰 *Inversión total aprox: ${totalReinversion}*`);
+
+            navigator.clipboard.writeText(lineas.join('\n')).then(() => {
+                const btn = document.getElementById('btn-copiar-super');
+                if (btn) {
+                    const original = btn.innerHTML;
+                    btn.innerHTML = '✅ ¡Lista Copiada!';
+                    setTimeout(() => { btn.innerHTML = original; }, 2500);
+                }
+            });
+        }
     </script>
 </body>
 </html>

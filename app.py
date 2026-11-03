@@ -1215,19 +1215,41 @@ def analiticas():
         valor_total += precio_unitario * cantidad_num
 
         if cantidad_num < val_minimo:
+            faltante = round(val_minimo - cantidad_num, 2)
+            costo_estimado = round(faltante * precio_unitario, 2)
+            porcentaje_stock = int(min(100, max(0, (cantidad_num / max(val_minimo, 1.0)) * 100)))
             productos_bajos.append({
                 'Producto': p.get('Producto', 'Sin Nombre'),
-                'Cantidad': cantidad_num,
+                'Cantidad': round(cantidad_num, 2),
                 'Medida': p.get('Medida', ''),
-                'Minimo': val_minimo
+                'Minimo': round(val_minimo, 2),
+                'Faltante': faltante,
+                'Costo_Estimado': costo_estimado,
+                'Costo_Estimado_Str': f"${costo_estimado:,.2f}",
+                'Porcentaje': porcentaje_stock
             })
-            faltante = val_minimo - cantidad_num
-            dinero_reinvertir += faltante * precio_unitario
+            dinero_reinvertir += costo_estimado
+
+    # Ordenamos la lista del súper empezando por los más urgentes (menor % de stock)
+    productos_bajos.sort(key=lambda x: x['Porcentaje'])
 
     conteo_ventas = {}
+    ingresos_por_platillo = {}
+    consumo_clientes = {}
+    metodos_pago_mes = {'Efectivo': 0.0, 'Tarjeta': 0.0, 'Transferencia': 0.0, 'Credito': 0.0}
+    total_credito_pendiente = 0.0
+
     ingresos_hoy, ingresos_semana, ingresos_mes = 0.0, 0.0, 0.0
+    gastos_hoy, gastos_semana, gastos_mes = 0.0, 0.0, 0.0
+
     hoy = obtener_ahora()
     inicio_semana = hoy - timedelta(days=hoy.weekday())
+
+    # Estructura para los últimos 7 días (Ventas vs Gastos vs Utilidad)
+    nombres_dias_es = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    fechas_7_dias = [(hoy.date() - timedelta(days=i)) for i in range(6, -1, -1)]
+    mapa_ventas_7d = {f.strftime('%Y-%m-%d'): 0.0 for f in fechas_7_dias}
+    mapa_gastos_7d = {f.strftime('%Y-%m-%d'): 0.0 for f in fechas_7_dias}
 
     if os.path.exists('ventas.csv'):
         with open('ventas.csv', mode='r', encoding='utf-8') as f:
@@ -1235,32 +1257,106 @@ def analiticas():
             for fila in lector:
                 if fila:
                     platillo = fila[0].strip()
-                    fecha_str = fila[1] if len(fila) > 1 else hoy.strftime('%Y-%m-%d')
+                    fecha_str = fila[1].strip() if len(fila) > 1 else hoy.strftime('%Y-%m-%d')
                     try: precio_venta = float(fila[2]) if len(fila) > 2 else 0.0
                     except: precio_venta = 0.0
+                    cliente_v = fila[3].strip() if len(fila) > 3 else 'General'
+                    metodo_v = fila[4].strip() if len(fila) > 4 else 'Efectivo'
 
                     # Solo contamos platillos reales (ignoramos filas negativas de descuentos o pagos con puntos)
                     if precio_venta >= 0 and not platillo.startswith('Desc ') and platillo != 'Pago con Puntos':
                         conteo_ventas[platillo] = conteo_ventas.get(platillo, 0) + 1
+                        ingresos_por_platillo[platillo] = ingresos_por_platillo.get(platillo, 0.0) + precio_venta
+
+                    if cliente_v and cliente_v.lower() != 'general':
+                        consumo_clientes[cliente_v] = consumo_clientes.get(cliente_v, 0.0) + precio_venta
+
+                    if metodo_v == 'Credito':
+                        total_credito_pendiente += precio_venta
+
+                    if fecha_str in mapa_ventas_7d:
+                        mapa_ventas_7d[fecha_str] += precio_venta
 
                     try:
                         fecha_venta = datetime.strptime(fecha_str, '%Y-%m-%d')
-                        if fecha_venta.date() == hoy.date(): ingresos_hoy += precio_venta
-                        if fecha_venta.date() >= inicio_semana.date(): ingresos_semana += precio_venta
-                        if fecha_venta.year == hoy.year and fecha_venta.month == hoy.month: ingresos_mes += precio_venta
-                    except ValueError: pass
+                        if fecha_venta.date() == hoy.date():
+                            ingresos_hoy += precio_venta
+                        if fecha_venta.date() >= inicio_semana.date():
+                            ingresos_semana += precio_venta
+                        if fecha_venta.year == hoy.year and fecha_venta.month == hoy.month:
+                            ingresos_mes += precio_venta
+                            if metodo_v in metodos_pago_mes:
+                                metodos_pago_mes[metodo_v] += precio_venta
+                            else:
+                                metodos_pago_mes['Efectivo'] += precio_venta
+                    except ValueError:
+                        pass
 
+    if os.path.exists('gastos.csv'):
+        with open('gastos.csv', mode='r', encoding='utf-8') as f_g:
+            for fila_g in csv.DictReader(f_g):
+                fecha_g_str = (fila_g.get('Fecha') or '').strip()
+                try:
+                    monto_g = float(fila_g.get('Monto') or 0.0)
+                except (ValueError, TypeError):
+                    monto_g = 0.0
+
+                if fecha_g_str in mapa_gastos_7d:
+                    mapa_gastos_7d[fecha_g_str] += monto_g
+
+                try:
+                    fecha_g_dt = datetime.strptime(fecha_g_str, '%Y-%m-%d')
+                    if fecha_g_dt.date() == hoy.date():
+                        gastos_hoy += monto_g
+                    if fecha_g_dt.date() >= inicio_semana.date():
+                        gastos_semana += monto_g
+                    if fecha_g_dt.year == hoy.year and fecha_g_dt.month == hoy.month:
+                        gastos_mes += monto_g
+                except ValueError:
+                    pass
+
+    dias_7_labels = [f"{nombres_dias_es[f.weekday()]} {f.strftime('%d/%m')}" for f in fechas_7_dias]
+    dias_7_ventas = [round(mapa_ventas_7d[f.strftime('%Y-%m-%d')], 2) for f in fechas_7_dias]
+    dias_7_gastos = [round(mapa_gastos_7d[f.strftime('%Y-%m-%d')], 2) for f in fechas_7_dias]
+    dias_7_utilidad = [round(dias_7_ventas[i] - dias_7_gastos[i], 2) for i in range(len(fechas_7_dias))]
+
+    # Top 5 por Unidades Vendidas y Top 5 por Dinero Generado ($)
     top_ventas = sorted(conteo_ventas.items(), key=lambda x: x[1], reverse=True)[:5]
     nombres_v = [v[0] for v in top_ventas]
     cantidades_v = [v[1] for v in top_ventas]
 
+    top_dinero = sorted(ingresos_por_platillo.items(), key=lambda x: x[1], reverse=True)[:5]
+    nombres_dinero = [v[0] for v in top_dinero]
+    montos_dinero = [round(v[1], 2) for v in top_dinero]
+
     desayunos_proyectados = 0
     comidas_proyectadas = 0
+    info_clientes_subs = {}
+    cumpleaneros = []
+
     if os.path.exists('suscripciones.csv'):
         with open('suscripciones.csv', mode='r', encoding='utf-8') as f:
             for fila in csv.DictReader(f):
-                if fila.get('Estado') == 'Activo':
-                    plan_cliente = (fila.get('Plan') or '').strip()
+                nom_c = (fila.get('Cliente') or '').strip()
+                plan_cliente = (fila.get('Plan') or 'Cliente Regular').strip()
+                estado_c = (fila.get('Estado') or 'Regular').strip()
+                cumple_c = (fila.get('Cumpleanos') or '').strip()
+                try:
+                    pts_c = round(float(fila.get('Puntos') or 0), 2)
+                except (ValueError, TypeError):
+                    pts_c = 0.0
+
+                if nom_c:
+                    info_clientes_subs[nom_c.lower()] = {
+                        'Nombre': nom_c,
+                        'Plan': plan_cliente,
+                        'Puntos': pts_c,
+                        'Cumpleanos': cumple_c
+                    }
+                    if cumple_c and cumple_c != '-':
+                        cumpleaneros.append({'Nombre': nom_c, 'Cumpleanos': cumple_c, 'Puntos': pts_c})
+
+                if estado_c == 'Activo':
                     if plan_cliente == 'Desayunos':
                         desayunos_proyectados += 5
                     elif plan_cliente == 'Comidas':
@@ -1269,18 +1365,61 @@ def analiticas():
                         desayunos_proyectados += 5
                         comidas_proyectadas += 5
 
-    # ✨ APLICAMOS REDONDEO SOLO A LAS VENTAS, EL INVENTARIO CONSERVA SUS DECIMALES ✨
+    # Construimos el Top 5 de Mejores Clientes
+    top_clientes_raw = sorted(consumo_clientes.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_clientes = []
+    for nom_cli, total_gastado in top_clientes_raw:
+        datos_extra = info_clientes_subs.get(nom_cli.lower(), {})
+        top_clientes.append({
+            'Nombre': datos_extra.get('Nombre', nom_cli),
+            'Total': round(total_gastado, 2),
+            'Total_Str': f"${int(redondear_comercial(total_gastado)):,}",
+            'Puntos': datos_extra.get('Puntos', 0),
+            'Plan': datos_extra.get('Plan', 'Cliente Regular')
+        })
+
+    utilidad_hoy = ingresos_hoy - gastos_hoy
+    utilidad_semana = ingresos_semana - gastos_semana
+    utilidad_mes = ingresos_mes - gastos_mes
+
+    # Si en el mes actual aún no hay ventas, mostramos el acumulado general en la dona de métodos
+    metodos_dona = [
+        round(max(0.0, metodos_pago_mes['Efectivo']), 2),
+        round(max(0.0, metodos_pago_mes['Tarjeta']), 2),
+        round(max(0.0, metodos_pago_mes['Transferencia']), 2),
+        round(max(0.0, metodos_pago_mes['Credito']), 2)
+    ]
+
     return render_template('analiticas.html',
-                           valor_inventario=f"${valor_total:,.2f}",          # 👈 Decimales exactos restaurados
-                           dinero_reinversion=f"${dinero_reinvertir:,.2f}",  # 👈 Decimales exactos restaurados
+                           valor_inventario=f"${valor_total:,.2f}",
+                           dinero_reinversion=f"${dinero_reinvertir:,.2f}",
+                           total_credito_str=f"${total_credito_pendiente:,.2f}",
                            alertas_stock=productos_bajos,
                            desayunos_proyectados=desayunos_proyectados,
                            comidas_proyectadas=comidas_proyectadas,
                            nombres_platillos=nombres_v,
                            cantidades_platillos=cantidades_v,
+                           nombres_platillos_dinero=nombres_dinero,
+                           montos_platillos_dinero=montos_dinero,
+                           dias_7_labels=dias_7_labels,
+                           dias_7_ventas=dias_7_ventas,
+                           dias_7_gastos=dias_7_gastos,
+                           dias_7_utilidad=dias_7_utilidad,
+                           metodos_dona=metodos_dona,
+                           top_clientes=top_clientes,
+                           cumpleaneros=cumpleaneros,
                            hoy_str=f"${int(redondear_comercial(ingresos_hoy)):,}",
+                           gastos_hoy_str=f"${int(redondear_comercial(gastos_hoy)):,}",
+                           utilidad_hoy_str=f"${int(redondear_comercial(utilidad_hoy)):,}",
+                           utilidad_hoy_num=utilidad_hoy,
                            semana_str=f"${int(redondear_comercial(ingresos_semana)):,}",
-                           mes_str=f"${int(redondear_comercial(ingresos_mes)):,}")
+                           gastos_semana_str=f"${int(redondear_comercial(gastos_semana)):,}",
+                           utilidad_semana_str=f"${int(redondear_comercial(utilidad_semana)):,}",
+                           utilidad_semana_num=utilidad_semana,
+                           mes_str=f"${int(redondear_comercial(ingresos_mes)):,}",
+                           gastos_mes_str=f"${int(redondear_comercial(gastos_mes)):,}",
+                           utilidad_mes_str=f"${int(redondear_comercial(utilidad_mes)):,}",
+                           utilidad_mes_num=utilidad_mes)
 
 # --- RUTA: EDITAR CANTIDAD, PRECIO Y MÍNIMO DESDE LA TABLA ---
 @app.route('/editar_stock', methods=['POST'])
