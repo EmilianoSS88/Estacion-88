@@ -54,9 +54,14 @@
                                 <h2 class="text-lg font-bold text-white tracking-wide">🍽️ {{ platillo }}</h2>
                                 <p class="text-emerald-400 font-bold text-lg mt-1" title="Precio Sugerido de Venta">Sugerido: <span class="text-2xl">{{ data.precio_sugerido_str }}</span></p>
                             </div>
-                            <a href="/editar_receta?platillo={{ platillo }}" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-1.5 px-3 rounded-md transition-colors shadow-sm whitespace-nowrap ml-2">
-                                ✏️ Editar
-                            </a>
+                            <div class="flex items-center gap-2 ml-2">
+                                <a href="/nueva_receta?base={{ platillo | urlencode }}" class="text-xs bg-sky-500 hover:bg-sky-600 text-white font-bold py-1.5 px-3 rounded-md transition-colors shadow-sm whitespace-nowrap" title="Tomar esta receta como base para crear una nueva">
+                                    📋 Copiar
+                                </a>
+                                <a href="/editar_receta?platillo={{ platillo | urlencode }}" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-1.5 px-3 rounded-md transition-colors shadow-sm whitespace-nowrap">
+                                    ✏️ Editar
+                                </a>
+                            </div>
                         </div>
                         
                         <div class="p-4 flex-1 bg-slate-50/50">

@@ -6,65 +6,211 @@
     <title>Nueva Receta | Estación 88</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 p-8 font-sans min-h-screen flex items-center justify-center">
+<body class="bg-slate-50 p-8 font-sans min-h-screen flex items-start justify-center pt-10">
 
     <div class="max-w-3xl w-full mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
 
-        <div class="mb-8 border-b pb-4 flex justify-between items-center">
-            <h1 class="text-3xl font-extrabold text-orange-600 tracking-tight">Agregar a Recetario</h1>
+        <div class="mb-6 border-b pb-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-extrabold text-orange-600 tracking-tight">Agregar a Recetario</h1>
+                <p class="text-sm text-slate-500 mt-1">Crea una receta desde cero o toma una existente como base para ajustarla.</p>
+            </div>
             <a href="/recetas" class="text-slate-500 hover:text-slate-800 font-bold text-sm bg-slate-100 hover:bg-slate-200 py-2 px-4 rounded-lg transition-colors">
                 ⬅ Volver
             </a>
         </div>
 
-        <form method="POST" action="/nueva_receta" class="flex flex-col gap-6">
+        {% if error %}
+        <div class="mb-6 bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm">
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
 
+        <div id="alerta-duplicado" class="hidden mb-6 bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg font-bold text-sm items-center gap-2 shadow-sm">
+            <span id="texto-alerta-duplicado">⚠️ Ya existe una receta con ese nombre. Cámbialo para poder guardar.</span>
+        </div>
+
+        <!-- Selector opcional de Receta Base -->
+        <div class="mb-6 bg-sky-50 border border-sky-200 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
-                <label for="platillo" class="block text-sm font-bold text-slate-700 mb-2">Nombre del Platillo Completo:</label>
-                <input list="lista-platillos" name="platillo" id="platillo" required placeholder="Ej. Chapata Semillas Mixtas" autocomplete="off" class="w-full py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm">
-                <datalist id="lista-platillos">
-                    {% for nombre in platillos_disponibles %}
-                        <option value="{{ nombre }}">
-                    {% endfor %}
-                </datalist>
+                <label for="selector-receta-base" class="block text-sm font-extrabold text-sky-800">📋 ¿Tomar una receta existente como base? (Opcional)</label>
+                <p class="text-xs text-sky-600">Carga todos los ingredientes de otro platillo para solo quitar o agregar lo que cambie.</p>
+            </div>
+            <select id="selector-receta-base" onchange="cargarRecetaBase(this.value)" class="py-2.5 px-3 border border-sky-300 rounded-lg bg-white text-slate-700 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 md:w-64">
+                <option value="">-- Empezar desde cero --</option>
+                {% for nombre in platillos_disponibles %}
+                    <option value="{{ nombre }}" {% if receta_base == nombre %}selected{% endif %}>🍽️ {{ nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <form method="POST" action="/nueva_receta" id="form-nueva-receta" onsubmit="return validarFormulario(event)" class="flex flex-col gap-6">
+            <input type="hidden" name="receta_base_seleccionada" id="receta_base_seleccionada" value="{{ receta_base or '' }}">
+
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-grow">
+                    <label for="platillo" class="block text-sm font-bold text-slate-700 mb-2">Nombre del Platillo Completo:</label>
+                    <input type="text" name="platillo" id="platillo" value="{{ nombre_sugerido or '' }}" required placeholder="Ej. Chapata Semillas Mixtas" autocomplete="off" oninput="verificarNombreDuplicado()" class="w-full py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-bold text-slate-800 shadow-sm">
+                </div>
+
+                <div class="md:w-48">
+                    <label for="margen_ganancia" class="block text-sm font-bold text-slate-700 mb-2">Margen de Ganancia (%):</label>
+                    <input type="number" step="any" name="margen_ganancia" id="margen_ganancia" value="{{ margen_inicial if margen_inicial is not none else 40.0 }}" required title="Fórmula financiera: Precio = Costo / (1 - Margen)" class="w-full py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none font-black text-emerald-600 text-lg bg-emerald-50 text-center shadow-inner">
+                </div>
             </div>
 
             <div>
-                <label class="block text-sm font-bold text-slate-700 mb-2">Ingredientes (Agrega todos los que necesites):</label>
-
-                <div id="contenedor-ingredientes" class="flex flex-col gap-3">
-                    <div class="flex gap-4 items-center fila-ingrediente bg-slate-50 p-3 rounded border border-slate-200">
-                        <input list="lista-insumos" name="insumos[]" placeholder="Buscar insumo..." class="flex-1 py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="number" step="any" name="cantidades[]" placeholder="Cant. (Ej. 0.5)" class="w-32 py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-sm font-bold text-slate-700">Ingredientes (Agrega o quita los que necesites):</label>
+                    <span class="text-xs text-slate-400 font-semibold">Usa ✕ para quitar un ingrediente</span>
                 </div>
 
-                <button type="button" onclick="agregarFila()" class="mt-3 text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <div id="contenedor-ingredientes" class="flex flex-col gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    {% if ingredientes_iniciales and ingredientes_iniciales|length > 0 %}
+                        {% for ing in ingredientes_iniciales %}
+                        <div class="flex gap-3 items-center fila-ingrediente bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                            <input list="lista-insumos" name="insumos[]" value="{{ ing['Insumo'] }}" required placeholder="Buscar insumo..." autocomplete="off" class="flex-1 py-2 px-3 border border-gray-300 rounded-md text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-400 font-bold uppercase">Porción:</span>
+                                <input type="number" step="any" name="cantidades[]" value="{{ ing['Cantidad'] }}" required placeholder="Cant. (Ej. 0.5)" class="w-28 text-center py-2 px-3 border border-gray-300 rounded-md font-bold text-amber-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <button type="button" onclick="eliminarFila(this)" title="Quitar este ingrediente" class="text-red-400 hover:text-red-600 text-lg font-bold px-2 transition-colors">✕</button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="flex gap-3 items-center fila-ingrediente bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                            <input list="lista-insumos" name="insumos[]" required placeholder="Buscar insumo..." autocomplete="off" class="flex-1 py-2 px-3 border border-gray-300 rounded-md text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-400 font-bold uppercase">Porción:</span>
+                                <input type="number" step="any" name="cantidades[]" required placeholder="Cant. (Ej. 0.5)" class="w-28 text-center py-2 px-3 border border-gray-300 rounded-md font-bold text-amber-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <button type="button" onclick="eliminarFila(this)" title="Quitar este ingrediente" class="text-red-400 hover:text-red-600 text-lg font-bold px-2 transition-colors">✕</button>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <button type="button" onclick="agregarFila()" class="mt-3 text-sm font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 py-2 px-4 rounded-lg transition-colors inline-flex items-center gap-2">
                     ➕ Añadir otro ingrediente
                 </button>
 
                 <datalist id="lista-insumos">
                     {% for item in inventario %}
-                        <option value="{{ item['Producto'] }}">
+                        <option value="{{ item['Producto'] }}">{{ item['Producto'] }} ({{ item['Medida'] }})</option>
                     {% endfor %}
                 </datalist>
             </div>
 
-            <button type="submit" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all text-lg w-full">
+            <button type="submit" id="btn-guardar" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-lg shadow-md transition-all text-lg w-full">
                 💾 Guardar Receta Completa
             </button>
 
         </form>
+        <div id="datos-recetario"
+             data-plantillas='{{ (recetas_plantilla or {}) | tojson }}'
+             data-platillos='{{ (platillos_disponibles or []) | tojson }}'
+             class="hidden"></div>
     </div>
 
     <script>
+        const contenedorDatosRecetario = document.getElementById('datos-recetario');
+        const recetasPlantilla = contenedorDatosRecetario ? JSON.parse(contenedorDatosRecetario.dataset.plantillas || '{}') : {};
+        const platillosExistentesLower = (contenedorDatosRecetario ? JSON.parse(contenedorDatosRecetario.dataset.platillos || '[]') : []).map(p => p.toLowerCase().trim());
+
+        function crearElementoFila(insumo = '', cantidad = '') {
+            const fila = document.createElement('div');
+            fila.className = 'flex gap-3 items-center fila-ingrediente bg-white p-3 rounded-lg border border-slate-200 shadow-sm';
+            fila.innerHTML = `
+                <input list="lista-insumos" name="insumos[]" required placeholder="Buscar insumo..." autocomplete="off" class="flex-1 py-2 px-3 border border-gray-300 rounded-md text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-400 font-bold uppercase">Porción:</span>
+                    <input type="number" step="any" name="cantidades[]" required placeholder="Cant. (Ej. 0.5)" class="w-28 text-center py-2 px-3 border border-gray-300 rounded-md font-bold text-amber-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="button" onclick="eliminarFila(this)" title="Quitar este ingrediente" class="text-red-400 hover:text-red-600 text-lg font-bold px-2 transition-colors">✕</button>
+            `;
+            const inputs = fila.querySelectorAll('input');
+            inputs[0].value = insumo;
+            inputs[1].value = cantidad;
+            return fila;
+        }
+
         function agregarFila() {
             const contenedor = document.getElementById('contenedor-ingredientes');
-            const primeraFila = contenedor.querySelector('.fila-ingrediente');
-            const nuevaFila = primeraFila.cloneNode(true);
-            // Limpiamos los textos que se hayan copiado
-            nuevaFila.querySelectorAll('input').forEach(input => input.value = '');
-            contenedor.appendChild(nuevaFila);
+            contenedor.appendChild(crearElementoFila('', ''));
+        }
+
+        function eliminarFila(boton) {
+            const contenedor = document.getElementById('contenedor-ingredientes');
+            const filas = contenedor.querySelectorAll('.fila-ingrediente');
+            if (filas.length > 1) {
+                boton.parentElement.remove();
+            } else {
+                // Si solo queda 1 fila, limpiamos sus valores para que no quede sin campos
+                filas[0].querySelectorAll('input').forEach(inp => inp.value = '');
+            }
+        }
+
+        function cargarRecetaBase(nombreBase) {
+            const contenedor = document.getElementById('contenedor-ingredientes');
+            const inputPlatillo = document.getElementById('platillo');
+            const inputMargen = document.getElementById('margen_ganancia');
+            const inputBaseHidden = document.getElementById('receta_base_seleccionada');
+
+            inputBaseHidden.value = nombreBase || '';
+
+            if (!nombreBase || !recetasPlantilla[nombreBase]) {
+                inputPlatillo.value = '';
+                inputMargen.value = 40.0;
+                contenedor.innerHTML = '';
+                contenedor.appendChild(crearElementoFila('', ''));
+                verificarNombreDuplicado();
+                return;
+            }
+
+            const datosBase = recetasPlantilla[nombreBase];
+            inputPlatillo.value = `${nombreBase} Copia`;
+            inputMargen.value = datosBase.margen !== undefined ? datosBase.margen : 40.0;
+
+            contenedor.innerHTML = '';
+            if (datosBase.insumos && datosBase.insumos.length > 0) {
+                datosBase.insumos.forEach(item => {
+                    contenedor.appendChild(crearElementoFila(item.Insumo, item.Cantidad));
+                });
+            } else {
+                contenedor.appendChild(crearElementoFila('', ''));
+            }
+
+            verificarNombreDuplicado();
+            inputPlatillo.focus();
+            inputPlatillo.select();
+        }
+
+        function verificarNombreDuplicado() {
+            const inputPlatillo = document.getElementById('platillo');
+            const alerta = document.getElementById('alerta-duplicado');
+            const textoAlerta = document.getElementById('texto-alerta-duplicado');
+            const nombreActual = (inputPlatillo.value || '').toLowerCase().trim();
+
+            if (nombreActual && platillosExistentesLower.includes(nombreActual)) {
+                textoAlerta.textContent = `⚠️ Ya existe una receta llamada "${inputPlatillo.value.trim()}". Cámbiale el nombre para no encimar sus ingredientes.`;
+                alerta.classList.remove('hidden');
+                alerta.classList.add('flex');
+                inputPlatillo.classList.add('border-red-500', 'ring-2', 'ring-red-300');
+                return true;
+            } else {
+                alerta.classList.add('hidden');
+                alerta.classList.remove('flex');
+                inputPlatillo.classList.remove('border-red-500', 'ring-2', 'ring-red-300');
+                return false;
+            }
+        }
+
+        function validarFormulario(event) {
+            if (verificarNombreDuplicado()) {
+                event.preventDefault();
+                document.getElementById('platillo').focus();
+                return false;
+            }
+            return true;
         }
     </script>
 </body>

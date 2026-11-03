@@ -173,10 +173,13 @@
         </div>
     </div>
 
+    <div id="datos-clientes-pos" data-clientes='{{ (clientes or []) | tojson }}' class="hidden"></div>
+
     <!-- SCRIPTS -->
     <script>
         // ✨ DICCIONARIO DE PUNTOS BLINDADO (A PRUEBA DE ESPACIOS Y MAYÚSCULAS) ✨
-        const clientesLista = JSON.parse('{{ clientes | tojson | safe }}');
+        const contenedorClientesPos = document.getElementById('datos-clientes-pos');
+        const clientesLista = contenedorClientesPos ? JSON.parse(contenedorClientesPos.dataset.clientes || '[]') : [];
         const clientesPuntos = {};
 
         // Convertimos todos los nombres a minúsculas y les quitamos los espacios fantasma

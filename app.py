@@ -23,7 +23,7 @@ def obtener_fecha_hoy():
     return obtener_ahora().strftime('%Y-%m-%d')
 
 app = Flask(__name__)
-# 👇 Esta llave secreta es obligatoria para usar sesiones. ¡No la borres!
+# No borrar
 app.secret_key = os.getenv('FLASK_SECRET', 'estacion88_llave_super_secreta')
 
 # Creamos las listas globales en la memoria
@@ -152,7 +152,7 @@ def cargar_datos_iniciales():
                     'Puntos': puntos_real
                 })
 
-# --- 1. NUEVA PANTALLA PRINCIPAL (DASHBOARD) ---
+# DASHBOARD
 @app.route('/')
 @login_required
 def dashboard():
@@ -167,7 +167,7 @@ def dashboard():
                            platillos_disponibles=lista_de_platillos,
                            clientes=clientes_bd)
 
-# --- RUTA: ASISTENTE VIRTUAL DE TELEGRAM (WEBHOOK) ---
+# ASISTENTE VIRTUAL DE TELEGRAM
 @app.route('/webhook_telegram', methods=['POST'])
 def webhook_telegram():
     print("🤖 [TELEGRAM] ¡Webhook disparado por Telegram!")
@@ -370,7 +370,7 @@ def auto_cerrar_turnos_vencidos():
             except:
                 pass
 
-# --- 2. EL INVENTARIO AHORA TIENE SU PROPIA RUTA ---
+# INVENTARIO 
 @app.route('/inventario')
 @login_required
 def inventario():
@@ -541,7 +541,7 @@ def editar_status_cliente():
     cargar_datos_iniciales()
     return redirect(url_for('suscripciones'))
 
-# --- RUTA: ELIMINAR CLIENTE DEL CATÁLOGO ---
+# ELIMINAR CLIENTE DEL CATÁLOGO 
 @app.route('/eliminar_cliente', methods=['POST'])
 @app.route('/eliminar_cliente/<path:cliente_nombre>', methods=['POST'])
 @login_required
@@ -598,12 +598,23 @@ def editar_cliente():
             lector = csv.DictReader(f)
             for fila in lector:
                 if fila.get('Cliente', '').lower().strip() == cliente_original.lower():
+                    plan_anterior = fila.get('Plan', 'Cliente Regular')
                     fila['Cliente'] = nuevo_nombre
                     fila['Telefono'] = nuevo_telefono
                     fila['Cumpleanos'] = nuevo_cumpleanos
                     fila['Puntos'] = round(nuevos_puntos, 2)
                     if nuevo_plan:
                         fila['Plan'] = nuevo_plan
+                        if nuevo_plan in ['Desayunos', 'Comidas', 'Plan Completo']:
+                            if plan_anterior not in ['Desayunos', 'Comidas', 'Plan Completo'] or fila.get('Estado') == 'Regular' or not fila.get('Fecha_Fin'):
+                                hoy_obj = obtener_ahora()
+                                fila['Fecha_Inicio'] = hoy_obj.strftime('%Y-%m-%d')
+                                fila['Fecha_Fin'] = (hoy_obj + timedelta(days=7)).strftime('%Y-%m-%d')
+                                fila['Estado'] = 'Activo'
+                        elif nuevo_plan == 'Cliente Regular':
+                            fila['Fecha_Inicio'] = ''
+                            fila['Fecha_Fin'] = ''
+                            fila['Estado'] = 'Regular'
                 lineas_actualizadas.append(fila)
 
         with open(archivo_subs, mode='w', encoding='utf-8', newline='') as f:
@@ -675,16 +686,36 @@ def vender_platillo():
         metodo_pago = 'Credito'
     else:
         import random
+        recibos_usados = set()
+        if os.path.exists('ventas.csv'):
+            with open('ventas.csv', mode='r', encoding='utf-8') as f_rec:
+                for fila_r in csv.reader(f_rec):
+                    if len(fila_r) >= 6:
+                        recibos_usados.add(fila_r[5].strip())
         num_recibo = f"1-{random.randint(1000, 9999)}"
+        while num_recibo in recibos_usados:
+            num_recibo = f"1-{random.randint(1000, 9999)}"
         metodo_pago = request.form.get('metodo_pago', 'Efectivo')
 
     # ✨ ATRAPAMOS EL PORCENTAJE DE DESCUENTO Y LOS PUNTOS ✨
-    try: descuento_pct = float(request.form.get('descuento_pct', 0))
+    try: descuento_pct = max(0.0, min(100.0, float(request.form.get('descuento_pct', 0))))
     except: descuento_pct = 0.0
     motivo_descuento = request.form.get('motivo_descuento', '').strip() or "General"
 
-    try: puntos_descontar = float(request.form.get('puntos_descontar', 0))
+    try: puntos_descontar = max(0.0, float(request.form.get('puntos_descontar', 0)))
     except: puntos_descontar = 0.0
+
+    # Validamos cuántos puntos tiene realmente el cliente para no descontar de más
+    puntos_disponibles_cliente = 0.0
+    if cliente_elegido != 'General':
+        for c in clientes_bd:
+            if c.get('Nombre', '').lower().strip() == cliente_elegido.lower():
+                try:
+                    puntos_disponibles_cliente = max(0.0, float(c.get('Puntos', 0)))
+                except (ValueError, TypeError):
+                    puntos_disponibles_cliente = 0.0
+                break
+    puntos_descontar = min(puntos_descontar, puntos_disponibles_cliente)
 
     lista_platillos = request.form.getlist('platillos[]')
     lista_cantidades = request.form.getlist('cantidades_venta[]')
@@ -742,10 +773,11 @@ def vender_platillo():
                         try: producto['Cantidad'] = max(0.0, float(producto['Cantidad']) - (float(ingrediente['Cantidad a utilizar']) * cant_actual))
                         except: pass
 
-        # ✨ MATEMÁTICA DEL DESCUENTO Y LOS PUNTOS ✨
+        # ✨ MATEMÁTICA DEL DESCUENTO Y LOS PUNTOS (TOPADO AL SUBTOTAL RESTANTE) ✨
         monto_descuento = round(total_compra_bruto * (descuento_pct / 100), 2)
-        total_neto = total_compra_bruto - monto_descuento - puntos_descontar
-        total_neto = max(0.0, total_neto) # Evitar saldos negativos
+        subtotal_tras_descuento = max(0.0, total_compra_bruto - monto_descuento)
+        puntos_descontar = round(min(puntos_descontar, subtotal_tras_descuento), 2)
+        total_neto = max(0.0, subtotal_tras_descuento - puntos_descontar)
 
         # Insertar los registros negativos en ventas.csv para que el historial cuadre perfecto
         if monto_descuento > 0:
@@ -910,11 +942,37 @@ def eliminar_de_cuenta():
 
     return redirect(url_for('editar_cuenta', recibo=recibo))
 
-# --- RUTA: NUEVA RECETA (CORREGIDA SIN COMAS FANTASMA) ---
+# --- RUTA: NUEVA RECETA (CORREGIDA SIN COMAS FANTASMA Y CON COPIA DE RECETA BASE) ---
 @app.route('/nueva_receta', methods=['GET', 'POST'])
 @login_required
 def nueva_receta():
     global recetas_bd
+    cargar_datos_iniciales()
+
+    # Agrupamos las recetas existentes para poder usarlas como plantilla/base
+    recetas_plantilla = {}
+    for r in recetas_bd:
+        platillo_nom = (r.get('Platillo') or '').strip()
+        if not platillo_nom:
+            continue
+        if platillo_nom not in recetas_plantilla:
+            try:
+                m_val = float(r.get('Margen', 40.0))
+            except (ValueError, TypeError):
+                m_val = 40.0
+            recetas_plantilla[platillo_nom] = {
+                'margen': m_val,
+                'insumos': []
+            }
+        insumo_nom = (r.get('Insumo') or '').strip()
+        if insumo_nom and not insumo_nom.isdigit():
+            recetas_plantilla[platillo_nom]['insumos'].append({
+                'Insumo': insumo_nom,
+                'Cantidad': r.get('Cantidad a utilizar', 0)
+            })
+
+    lista_de_platillos = sorted(list(recetas_plantilla.keys()), key=lambda x: x.lower())
+
     if request.method == 'POST':
         nuevo_platillo = request.form.get('platillo', '').strip()
 
@@ -928,12 +986,35 @@ def nueva_receta():
         lista_insumos = request.form.getlist('insumos[]')
         lista_cantidades = request.form.getlist('cantidades[]')
 
+        # 🛡️ PROTECCIÓN CONTRA NOMBRES DUPLICADOS
+        nombres_existentes_lower = [p.lower().strip() for p in lista_de_platillos]
+        if nuevo_platillo.lower() in nombres_existentes_lower:
+            ingredientes_enviados = []
+            for i in range(len(lista_insumos)):
+                ins_str = lista_insumos[i].strip()
+                cant_str = lista_cantidades[i] if i < len(lista_cantidades) else ''
+                if ins_str:
+                    ingredientes_enviados.append({'Insumo': ins_str, 'Cantidad': cant_str})
+
+            return render_template('nueva_receta.html',
+                                   platillos_disponibles=lista_de_platillos,
+                                   inventario=base_de_datos,
+                                   recetas_plantilla=recetas_plantilla,
+                                   receta_base=request.form.get('receta_base_seleccionada', ''),
+                                   nombre_sugerido=nuevo_platillo,
+                                   margen_inicial=margen_ganancia,
+                                   ingredientes_iniciales=ingredientes_enviados,
+                                   error=f"⚠️ Ya existe una receta llamada '{nuevo_platillo}'. Por favor cámbiale el nombre para no encimar sus ingredientes.")
+
         # ✨ NUESTRO CANDADO: Solo 4 columnas, cero fantasmas ✨
         encabezados_oficiales = ['Platillo', 'Insumo', 'Cantidad a utilizar', 'Margen']
+        archivo_existe = os.path.exists('recetas.csv')
 
         with open('recetas.csv', mode='a', encoding='utf-8', newline='') as archivo:
             # Usamos DictWriter para ser súper estrictos con las columnas
             escritor = csv.DictWriter(archivo, fieldnames=encabezados_oficiales, extrasaction='ignore')
+            if not archivo_existe:
+                escritor.writeheader()
 
             # Recorremos la lista de todos los ingredientes que escribió
             for i in range(len(lista_insumos)):
@@ -943,7 +1024,7 @@ def nueva_receta():
                 if insumo_actual != '' and not insumo_actual.isdigit():
                     cantidad_texto = lista_cantidades[i]
                     try:
-                        cantidad_num = float(cantidad_texto.replace(',', '.'))
+                        cantidad_num = float(str(cantidad_texto).replace(',', '.'))
                     except ValueError:
                         cantidad_num = 0.0
 
@@ -968,34 +1049,58 @@ def nueva_receta():
         return redirect(url_for('recetas'))
 
     else:
-        # Esto se ejecuta cuando abres la página por primera vez
-        lista_de_platillos = list(set([receta['Platillo'] for receta in recetas_bd if receta.get('Platillo')]))
-        return render_template('nueva_receta.html', platillos_disponibles=lista_de_platillos, inventario=base_de_datos)
+        # Esto se ejecuta cuando abres la página por primera vez o al darle en "Copiar"
+        receta_base = request.args.get('base', '').strip()
+        nombre_sugerido = ''
+        margen_inicial = 40.0
+        ingredientes_iniciales = []
+
+        if receta_base and receta_base in recetas_plantilla:
+            nombre_sugerido = f"{receta_base} Copia"
+            margen_inicial = recetas_plantilla[receta_base]['margen']
+            ingredientes_iniciales = recetas_plantilla[receta_base]['insumos']
+
+        return render_template('nueva_receta.html',
+                               platillos_disponibles=lista_de_platillos,
+                               inventario=base_de_datos,
+                               recetas_plantilla=recetas_plantilla,
+                               receta_base=receta_base,
+                               nombre_sugerido=nombre_sugerido,
+                               margen_inicial=margen_inicial,
+                               ingredientes_iniciales=ingredientes_iniciales,
+                               error=None)
 
 # --- NUEVA RUTA: ELIMINAR RECETA COMPLETA ---
 @app.route('/eliminar_receta', methods=['POST'])
 @login_required
 def eliminar_receta():
     global recetas_bd
-    platillo_a_borrar = request.form.get('platillo_eliminar')
+    platillo_a_borrar = (request.form.get('platillo_eliminar') or '').strip()
+    if not platillo_a_borrar:
+        return redirect(url_for('recetas'))
 
-    # 1. Borramos de la memoria rápida (RAM)
-    recetas_bd = [receta for receta in recetas_bd if receta.get('Platillo') != platillo_a_borrar]
+    archivo_recetas = 'recetas.csv'
+    encabezados_oficiales = ['Platillo', 'Insumo', 'Cantidad a utilizar', 'Margen']
 
-    # 2. Borramos del archivo físico
-    # Primero leemos absolutamente todas las líneas del CSV
-    with open('recetas.csv', mode='r', encoding='utf-8') as f:
-        lineas = f.readlines()
+    if os.path.exists(archivo_recetas):
+        lineas_restantes = []
+        with open(archivo_recetas, mode='r', encoding='utf-8') as f:
+            lector = csv.DictReader(f)
+            for fila in lector:
+                if (fila.get('Platillo') or '').strip().lower() != platillo_a_borrar.lower():
+                    lineas_restantes.append({
+                        'Platillo': fila.get('Platillo', ''),
+                        'Insumo': fila.get('Insumo', ''),
+                        'Cantidad a utilizar': fila.get('Cantidad a utilizar', 0),
+                        'Margen': fila.get('Margen', 40.0) or 40.0
+                    })
 
-    # Ahora volvemos a abrir en modo 'w' (Write = Sobreescribir)
-    with open('recetas.csv', mode='w', encoding='utf-8') as f:
-        for linea in lineas:
-            # Separamos la línea por comas para saber cuál es la primera columna (el nombre)
-            columnas = linea.split(',')
-            # Si el nombre del platillo NO es el que queremos borrar, lo escribimos de vuelta
-            if columnas[0] != platillo_a_borrar:
-                f.write(linea)
+        with open(archivo_recetas, mode='w', encoding='utf-8', newline='') as f:
+            escritor = csv.DictWriter(f, fieldnames=encabezados_oficiales, extrasaction='ignore')
+            escritor.writeheader()
+            escritor.writerows(lineas_restantes)
 
+    cargar_datos_iniciales()
     return redirect(url_for('recetas'))
 
 # --- RUTA: MOSTRAR FORMULARIO Y AGREGAR NUEVO INSUMO ---
@@ -1129,11 +1234,15 @@ def analiticas():
             lector = csv.reader(f)
             for fila in lector:
                 if fila:
-                    platillo = fila[0]
+                    platillo = fila[0].strip()
                     fecha_str = fila[1] if len(fila) > 1 else hoy.strftime('%Y-%m-%d')
                     try: precio_venta = float(fila[2]) if len(fila) > 2 else 0.0
                     except: precio_venta = 0.0
-                    conteo_ventas[platillo] = conteo_ventas.get(platillo, 0) + 1
+
+                    # Solo contamos platillos reales (ignoramos filas negativas de descuentos o pagos con puntos)
+                    if precio_venta >= 0 and not platillo.startswith('Desc ') and platillo != 'Pago con Puntos':
+                        conteo_ventas[platillo] = conteo_ventas.get(platillo, 0) + 1
+
                     try:
                         fecha_venta = datetime.strptime(fecha_str, '%Y-%m-%d')
                         if fecha_venta.date() == hoy.date(): ingresos_hoy += precio_venta
@@ -1145,19 +1254,28 @@ def analiticas():
     nombres_v = [v[0] for v in top_ventas]
     cantidades_v = [v[1] for v in top_ventas]
 
-    activas = 0
+    desayunos_proyectados = 0
+    comidas_proyectadas = 0
     if os.path.exists('suscripciones.csv'):
         with open('suscripciones.csv', mode='r', encoding='utf-8') as f:
             for fila in csv.DictReader(f):
-                if fila.get('Estado') == 'Activo': activas += 1
+                if fila.get('Estado') == 'Activo':
+                    plan_cliente = (fila.get('Plan') or '').strip()
+                    if plan_cliente == 'Desayunos':
+                        desayunos_proyectados += 5
+                    elif plan_cliente == 'Comidas':
+                        comidas_proyectadas += 5
+                    elif plan_cliente == 'Plan Completo':
+                        desayunos_proyectados += 5
+                        comidas_proyectadas += 5
 
     # ✨ APLICAMOS REDONDEO SOLO A LAS VENTAS, EL INVENTARIO CONSERVA SUS DECIMALES ✨
     return render_template('analiticas.html',
                            valor_inventario=f"${valor_total:,.2f}",          # 👈 Decimales exactos restaurados
                            dinero_reinversion=f"${dinero_reinvertir:,.2f}",  # 👈 Decimales exactos restaurados
                            alertas_stock=productos_bajos,
-                           desayunos_proyectados=activas * 5,
-                           comidas_proyectadas=activas * 5,
+                           desayunos_proyectados=desayunos_proyectados,
+                           comidas_proyectadas=comidas_proyectadas,
                            nombres_platillos=nombres_v,
                            cantidades_platillos=cantidades_v,
                            hoy_str=f"${int(redondear_comercial(ingresos_hoy)):,}",
@@ -1179,6 +1297,16 @@ def editar_stock():
     # 2. Atrapamos los demás campos
     nueva_presentacion = (request.form.get('nueva_presentacion') or '').strip()
     nueva_medida = (request.form.get('nueva_medida') or '').strip()
+
+    raw_contenido = request.form.get('nuevo_contenido')
+    nuevo_contenido = None
+    if raw_contenido is not None and str(raw_contenido).strip() != '':
+        try:
+            nuevo_contenido = float(raw_contenido)
+            if nuevo_contenido <= 0:
+                nuevo_contenido = 1.0
+        except (ValueError, TypeError):
+            nuevo_contenido = None
 
     raw_cantidad = request.form.get('nueva_cantidad') or request.form.get('cantidad') or request.form.get('nuevo_stock') or '0'
     try:
@@ -1220,6 +1348,8 @@ def editar_stock():
                     fila['Cantidad'] = nueva_cantidad
                     fila['Precio'] = nuevo_precio
                     fila['Minimo'] = nuevo_minimo
+                    if nuevo_contenido is not None:
+                        fila['Contenido'] = nuevo_contenido
                     if nueva_presentacion:
                         fila['Presentación'] = nueva_presentacion
                     if nueva_medida:
@@ -1235,6 +1365,26 @@ def editar_stock():
                 escritor = csv.DictWriter(f, fieldnames=encabezados, extrasaction='ignore')
                 escritor.writeheader()
                 escritor.writerows(lineas_actualizadas)
+
+            # 🔄 Si cambió el nombre del insumo, actualizamos también en recetas.csv para no romper recetas
+            if nuevo_nombre and nuevo_nombre.lower() != producto_busqueda.lower() and os.path.exists('recetas.csv'):
+                recetas_actualizadas = []
+                enc_recetas = ['Platillo', 'Insumo', 'Cantidad a utilizar', 'Margen']
+                with open('recetas.csv', mode='r', encoding='utf-8') as f_r:
+                    for fila_r in csv.DictReader(f_r):
+                        if (fila_r.get('Insumo') or '').strip().lower() == producto_busqueda.lower():
+                            fila_r['Insumo'] = nuevo_nombre
+                        recetas_actualizadas.append({
+                            'Platillo': fila_r.get('Platillo', ''),
+                            'Insumo': fila_r.get('Insumo', ''),
+                            'Cantidad a utilizar': fila_r.get('Cantidad a utilizar', 0),
+                            'Margen': fila_r.get('Margen', 40.0) or 40.0
+                        })
+                with open('recetas.csv', mode='w', encoding='utf-8', newline='') as f_r:
+                    esc_r = csv.DictWriter(f_r, fieldnames=enc_recetas, extrasaction='ignore')
+                    esc_r.writeheader()
+                    esc_r.writerows(recetas_actualizadas)
+
             print(f"ÉXITO: Se actualizó {producto_busqueda}")
 
     cargar_datos_iniciales()
@@ -1401,10 +1551,15 @@ def manejar_edicion_receta(platillo=None):
     ingredientes_actuales = []
     margen_actual = 40.0
 
+    # Mapa rápido de medidas por insumo
+    mapa_medidas = {p['Producto'].lower().strip(): p.get('Medida', '') for p in base_de_datos if p.get('Producto')}
+
     if platillo:
         for r in recetas_bd:
             if r.get('Platillo') == platillo:
-                ingredientes_actuales.append(r)
+                r_copia = dict(r)
+                r_copia['Medida'] = mapa_medidas.get((r.get('Insumo') or '').lower().strip(), '')
+                ingredientes_actuales.append(r_copia)
                 try:
                     margen_actual = float(r.get('Margen', 40.0))
                 except ValueError:
@@ -1537,6 +1692,10 @@ def reimprimir_ticket(id_fila):
 
     elementos_agrupados = {}
     total_compra = 0.0
+    monto_descuento = 0.0
+    descuento_pct = 0
+    motivo_descuento = "General"
+    puntos_descontar = 0.0
 
     for fila in lineas:
         pertenece_al_ticket = False
@@ -1550,11 +1709,28 @@ def reimprimir_ticket(id_fila):
                 pertenece_al_ticket = True
 
         if pertenece_al_ticket:
-            platillo = fila[0]
+            platillo = fila[0].strip()
             try:
                 precio = float(fila[2])
             except ValueError:
                 precio = 0.0
+
+            # Separamos descuentos y pagos con puntos para mostrarlos en el pie del ticket
+            if precio < 0 and platillo == "Pago con Puntos":
+                puntos_descontar += abs(precio)
+                total_compra += precio
+                continue
+            elif precio < 0 and platillo.startswith("Desc "):
+                monto_descuento += abs(precio)
+                total_compra += precio
+                try:
+                    partes = platillo[5:].split("%:", 1)
+                    descuento_pct = int(float(partes[0].strip()))
+                    if len(partes) > 1 and partes[1].strip():
+                        motivo_descuento = partes[1].strip()
+                except Exception:
+                    pass
+                continue
 
             if platillo in elementos_agrupados:
                 elementos_agrupados[platillo]['cantidad'] += 1
@@ -1568,6 +1744,7 @@ def reimprimir_ticket(id_fila):
                 }
             total_compra += precio
 
+    total_compra = max(0.0, total_compra)
     elementos_ticket = list(elementos_agrupados.values())
     num_recibo_final = recibo_ref if recibo_ref else f"R-{id_fila}"
 
@@ -1592,7 +1769,11 @@ def reimprimir_ticket(id_fila):
                            total=int(total_compra),
                            puntos_ganados=puntos_ganados,
                            puntos_totales=puntos_totales,
-                           metodo_pago=metodo_ref)
+                           metodo_pago=metodo_ref,
+                           monto_descuento=int(monto_descuento),
+                           descuento_pct=int(descuento_pct),
+                           motivo_descuento=motivo_descuento,
+                           puntos_descontar=int(puntos_descontar))
 
 # =====================================================================
 # --- RUTAS DE FASE 1: CORTE DE CAJA, GASTOS Y TURNOS (COMPLETAS) ---
@@ -1815,4 +1996,5 @@ def reabrir_turno():
     return redirect(url_for('modulo_caja'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug_activo = os.getenv('FLASK_DEBUG', '1') == '1'
+    app.run(debug=debug_activo)

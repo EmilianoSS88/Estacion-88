@@ -53,7 +53,7 @@
         </button>
     </div>
 
-    <div class="ticket-container bg-white w-full max-w-[340px] p-6 rounded-lg shadow-xl relative text-sm mx-auto">
+    <div class="ticket-container bg-white w-full max-w-[340px] p-6 rounded-lg shadow-xl relative text-sm mx-auto" data-recibo="{{ num_recibo }}">
         
         <div class="text-center mb-4">
             <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Estación 88" class="w-20 h-auto mx-auto rounded-full border border-gray-300 mb-2">
@@ -170,7 +170,8 @@
                 useCORS: true
             }).then(canvas => {
                 const enlace = document.createElement('a');
-                enlace.download = 'Recibo_{{ num_recibo }}.png'; 
+                const numRecibo = ticket.dataset.recibo || 'ticket';
+                enlace.download = `Recibo_${numRecibo}.png`; 
                 enlace.href = canvas.toDataURL("image/png");
                 enlace.click();
             });

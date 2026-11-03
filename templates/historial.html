@@ -108,7 +108,7 @@
                                         {% elif venta.metodo == 'Transferencia' %}
                                             <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 w-full justify-center">📱 Transfer</span>
                                         {% else %}
-                                            <button onclick="abrirModalLiquidacion('{{ venta.agrupador }}')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-1.5 px-3 rounded-full text-[11px] shadow-sm transition-colors w-full flex items-center justify-center uppercase tracking-wider animate-pulse" title="Cobrar esta cuenta pendiente">
+                                            <button type="button" data-agrupador="{{ venta.agrupador }}" onclick="abrirModalLiquidacion(this.dataset.agrupador)" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-1.5 px-3 rounded-full text-[11px] shadow-sm transition-colors w-full flex items-center justify-center uppercase tracking-wider animate-pulse" title="Cobrar esta cuenta pendiente">
                                                 💲 Cobrar
                                             </button>
                                         {% endif %}

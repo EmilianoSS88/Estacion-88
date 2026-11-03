@@ -82,16 +82,17 @@
                             </div>
                         </td>
 
-                        <!-- 2. MEDIDA Y PRESENTACIÓN EDITABLES (Cajitas invisibles) -->
+                        <!-- 2. MEDIDA, CONTENIDO Y PRESENTACIÓN EDITABLES (Cajitas invisibles) -->
                         <td class="whitespace-nowrap px-3 py-3 align-top">
                             <div class="flex flex-col gap-1">
                                 <div class="flex items-center gap-1">
-                                    <span class="text-xs text-gray-400 w-8">Med:</span>
-                                    <input type="text" name="nueva_medida" value="{{ item['Medida'] }}" form="fila-form-{{ loop.index }}" class="w-20 text-xs bg-transparent border border-transparent hover:border-gray-300 focus:bg-white focus:border-orange-500 rounded p-1 text-gray-700 font-medium transition-all outline-none cursor-pointer focus:cursor-text" title="Clic para editar">
+                                    <span class="text-xs text-gray-400 w-10">Cont:</span>
+                                    <input type="number" step="any" name="nuevo_contenido" value="{{ item['Contenido'] }}" form="fila-form-{{ loop.index }}" class="w-16 text-xs bg-transparent border border-transparent hover:border-gray-300 focus:bg-white focus:border-orange-500 rounded p-1 text-gray-700 font-bold transition-all outline-none cursor-pointer focus:cursor-text" title="Contenido por empaque">
+                                    <input type="text" name="nueva_medida" value="{{ item['Medida'] }}" form="fila-form-{{ loop.index }}" class="w-14 text-xs bg-transparent border border-transparent hover:border-gray-300 focus:bg-white focus:border-orange-500 rounded p-1 text-gray-700 font-medium transition-all outline-none cursor-pointer focus:cursor-text" title="Unidad de medida">
                                 </div>
                                 <div class="flex items-center gap-1">
-                                    <span class="text-xs text-gray-400 w-8">Emp:</span>
-                                    <input type="text" name="nueva_presentacion" value="{{ item['Presentación'] }}" form="fila-form-{{ loop.index }}" class="w-20 text-xs bg-transparent border border-transparent hover:border-gray-300 focus:bg-white focus:border-orange-500 rounded p-1 text-gray-700 font-medium transition-all outline-none cursor-pointer focus:cursor-text" title="Clic para editar">
+                                    <span class="text-xs text-gray-400 w-10">Emp:</span>
+                                    <input type="text" name="nueva_presentacion" value="{{ item['Presentación'] }}" form="fila-form-{{ loop.index }}" class="w-28 text-xs bg-transparent border border-transparent hover:border-gray-300 focus:bg-white focus:border-orange-500 rounded p-1 text-gray-700 font-medium transition-all outline-none cursor-pointer focus:cursor-text" title="Clic para editar empaque">
                                 </div>
                             </div>
                         </td>
