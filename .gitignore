@@ -19,3 +19,7 @@ respaldo_csv/
 
 # Notas personales
 notes.txt
+
+# Entorno virtual
+
+.venv/
