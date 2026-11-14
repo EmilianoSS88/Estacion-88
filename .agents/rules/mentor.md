@@ -39,9 +39,7 @@ Estacion_88/
 ```
 
 ## 4. Estado Actual del Progreso (Actualizar al avanzar)
-- **Módulo actual:** Módulo 1 (`config.py`).
-- **Qué ya se vio:**
-  - Explicación de todas las librerías de `app.py` (`os`, `csv`, `requests`, `pytz`, `datetime`, `flask`, `functools.wraps`, `dotenv`, `sqlite3`).
-  - Explicación detallada, Pseudocódigo y Caja de Herramientas para `config.py`.
-  - Flujo de trabajo con ramas de Git (`git checkout -b`, `git push -u`, `git fetch`, `git pull`).
-- **Siguiente paso:** Emiliano está escribiendo `config.py` por su cuenta. Revisar `config.py` cuando él lo indique y luego pasar al Módulo 2 (`database.py` con `sqlite3`).
+- **Módulo actual:** Módulo 2 (`database.py`).
+- **Módulos completados:**
+  - ✅ Módulo 1 (`config.py`): Completado y verificado. Constantes `BASE_DIR`, `DB_PATH`, variables `.env`, `ZONE_CDMX`, `get_now()`, `get_current_date()`.
+- **Siguiente paso:** Diseñar las tablas SQL e implementar `database.py` usando `sqlite3`.
