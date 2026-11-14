@@ -1,5 +1,5 @@
-import os
-import csv
+import os # Allows interact with the operative syste,
+import csv #
 import requests
 import pytz
 from datetime import datetime, timedelta
