@@ -39,7 +39,8 @@ Estacion_88/
 ```
 
 ## 4. Estado Actual del Progreso (Actualizar al avanzar)
-- **Módulo actual:** Módulo 2 (`database.py`).
+- **Módulo actual:** Módulo 3 (`migrar_csv_a_sql.py`).
 - **Módulos completados:**
   - ✅ Módulo 1 (`config.py`): Completado y verificado. Constantes `BASE_DIR`, `DB_PATH`, variables `.env`, `ZONE_CDMX`, `get_now()`, `get_current_date()`.
-- **Siguiente paso:** Diseñar las tablas SQL e implementar `database.py` usando `sqlite3`.
+  - ✅ Módulo 2 (`database.py`): Completado y verificado. `get_connection()` (con `sqlite3.Row`) e `init_db()` creando las 6 tablas (`productos`, `recetas`, `clientes`, `ventas`, `caja`, `gastos`) en `estacion88.db`.
+- **Siguiente paso:** Crear `migrar_csv_a_sql.py` para importar los datos reales de los 6 CSVs a SQLite sin perder información.

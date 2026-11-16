@@ -30,5 +30,5 @@ def get_current_date() -> str:
     """Get the current time with format %Y-%m-%d"""
     current_datetime = get_now()
     # Give format to the datetime
-    current_datetime = current_datetime.strftime('%Y-%m-%d')
-    return current_datetime
+    current_date = current_datetime.strftime('%Y-%m-%d')
+    return current_date
