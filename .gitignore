@@ -1,5 +1,6 @@
-# Archivos de datos locales
+# Archivos de bases de datos
 *.csv
+*.db
 
 # Variables de entorno y secretos
 .env
