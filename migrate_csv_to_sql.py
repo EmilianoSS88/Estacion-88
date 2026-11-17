@@ -42,29 +42,44 @@ def migrate_all():
     # Check if the .csv file exist (os.path.exist(path) return True if exist and False if not)
     if os.path.exists(inventary):
 
-        # Open the file in reading mode
+        # Open the inventary file in reading mode
         with open(inventary, mode='r', encoding='utf-8-sig') as inventary_file:
 
+            # Read the .csv file
             inventary_read = csv.DictReader(inventary_file)
 
+            # Iterates over every product (row) in inventary
             for product in inventary_read:
 
+                # Clean spaces on product name 
                 product_name = product['Producto'].strip()
 
+                # Verify if product name isn't empty and if it is continue to the next iteration
                 if not product_name:
                     continue
 
+                # Insert the product in the table and if it exist ignore it
                 db.execute("""INSERT OR IGNORE INTO productos 
                         (producto, Precio, Contenido, Medida, Cantidad, Presentacion, Minimo)
                         VALUES (?, ?, ?, ?, ?, ?, ?)""", (product_name, clean_value(product['Precio']), clean_value(product['Contenido']), product['Medida'].strip(), clean_value(product['Cantidad']), product['Presentación'].strip(), clean_value(product['Minimo']))
                 )
 
+        # Open the receipes file in reading mode
         with open(recipes, mode='r', encoding='utf-8-sig') as recipes_file:
 
+            # Reads the .csv file
             recipes_read = csv.DictReader(recipes_file)
 
-            for receipe in recipes_read:
-                print(receipe)
+            # Iterates over every recipe in the file
+            for recipe in recipes_read:
+
+                # Clean recipe name
+                recipe_name = recipe['Platillo'].strip()
+
+                if not recipe_name:
+                    continue
+
+                db.execute('INSERT INTO recetas (platillo, insumo, cantidad_utilizar, margen)')
         
 if __name__ == '__main__':
     migrate_all()
